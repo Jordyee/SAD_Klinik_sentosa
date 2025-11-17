@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="../styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-large">
+                    <i class="fas fa-hospital"></i>
+                    <h1>Klinik Sentosa</h1>
+                </div>
+                <p class="login-subtitle">Sistem Informasi Klinik</p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" name="username" required placeholder="Masukkan username" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" name="password" required placeholder="Masukkan password" autocomplete="current-password">
+                        <button type="button" class="toggle-password" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Masuk Sebagai</label>
+                    <div class="role-selector">
+                        <label class="role-option">
+                            <input type="radio" name="role" value="pasien" checked>
+                            <div class="role-card">
+                                <i class="fas fa-user"></i>
+                                <span>Pasien</span>
+                            </div>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="role" value="admin">
+                            <div class="role-card">
+                                <i class="fas fa-user-shield"></i>
+                                <span>Admin</span>
+                            </div>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="role" value="dokter">
+                            <div class="role-card">
+                                <i class="fas fa-user-md"></i>
+                                <span>Dokter</span>
+                            </div>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="role" value="perawat">
+                            <div class="role-card">
+                                <i class="fas fa-user-nurse"></i>
+                                <span>Perawat</span>
+                            </div>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="role" value="apotek">
+                            <div class="role-card">
+                                <i class="fas fa-pills"></i>
+                                <span>Apotek</span>
+                            </div>
+                        </label>
+                        <label class="role-option">
+                            <input type="radio" name="role" value="pemilik">
+                            <div class="role-card">
+                                <i class="fas fa-user-tie"></i>
+                                <span>Pemilik</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit btn-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Masuk</span>
+                </button>
+
+                <div class="login-info">
+                    <p><strong>Demo Account:</strong></p>
+                    <div class="demo-accounts">
+                        <div class="demo-item">
+                            <strong>Pasien:</strong> pasien / pasien123
+                        </div>
+                        <div class="demo-item">
+                            <strong>Admin:</strong> admin / admin123
+                        </div>
+                        <div class="demo-item">
+                            <strong>Dokter:</strong> dokter / dokter123
+                        </div>
+                        <div class="demo-item">
+                            <strong>Perawat:</strong> perawat / perawat123
+                        </div>
+                        <div class="demo-item">
+                            <strong>Apotek:</strong> apotek / apotek123
+                        </div>
+                        <div class="demo-item">
+                            <strong>Pemilik:</strong> pemilik / pemilik123
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../scripts/login.js"></script>
+</body>
+</html>
+
+

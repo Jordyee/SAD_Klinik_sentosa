@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="../styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="register.html" class="nav-link">Pendaftaran</a>
+                <a href="examination.html" class="nav-link">Pemeriksaan</a>
+                <a href="pharmacy.html" class="nav-link">Apotek</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <a href="billing.html" class="nav-link">Pembayaran</a>
+                <a href="#reports" class="nav-link active">Laporan</a>
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Laporan Klinik</h1>
+                <p>Dashboard dan laporan harian/bulanan untuk pemilik klinik</p>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #2563eb, #3b82f6);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalPatients">0</h3>
+                        <p>Total Pasien Hari Ini</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalRevenue">Rp 0</h3>
+                        <p>Total Pendapatan Hari Ini</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                        <i class="fas fa-prescription"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalPrescriptions">0</h3>
+                        <p>Resep Diproses Hari Ini</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa);">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalExaminations">0</h3>
+                        <p>Pemeriksaan Hari Ini</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchReportTab('daily')">
+                    <i class="fas fa-calendar-day"></i>
+                    Laporan Harian
+                </button>
+                <button class="tab-btn" onclick="switchReportTab('monthly')">
+                    <i class="fas fa-calendar-alt"></i>
+                    Laporan Bulanan
+                </button>
+                <button class="tab-btn" onclick="switchReportTab('patients')">
+                    <i class="fas fa-user-friends"></i>
+                    Data Pasien
+                </button>
+            </div>
+
+            <!-- Daily Report Tab -->
+            <div id="dailyReportTab" class="tab-content active">
+                <div class="form-container">
+                    <div class="section-header">
+                        <h2><i class="fas fa-calendar-day"></i> Laporan Harian</h2>
+                        <div class="header-actions">
+                            <input type="date" id="dailyReportDate" value="${new Date().toISOString().split('T')[0]}" onchange="loadDailyReport()">
+                            <button class="btn-secondary" onclick="exportDailyReport()">
+                                <i class="fas fa-download"></i> Export PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div id="dailyReportContent" class="report-content">
+                        <!-- Daily report will be displayed here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Report Tab -->
+            <div id="monthlyReportTab" class="tab-content">
+                <div class="form-container">
+                    <div class="section-header">
+                        <h2><i class="fas fa-calendar-alt"></i> Laporan Bulanan</h2>
+                        <div class="header-actions">
+                            <input type="month" id="monthlyReportMonth" value="${new Date().toISOString().slice(0, 7)}" onchange="loadMonthlyReport()">
+                            <button class="btn-secondary" onclick="exportMonthlyReport()">
+                                <i class="fas fa-download"></i> Export PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div id="monthlyReportContent" class="report-content">
+                        <!-- Monthly report will be displayed here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patients Data Tab -->
+            <div id="patientsDataTab" class="tab-content">
+                <div class="form-container">
+                    <div class="section-header">
+                        <h2><i class="fas fa-user-friends"></i> Data Pasien</h2>
+                        <div class="search-box-large">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="patientDataSearch" placeholder="Cari pasien..." onkeyup="searchPatientData(this.value)">
+                        </div>
+                    </div>
+                    <div id="patientsDataContent" class="patients-data-content">
+                        <!-- Patients data will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/reports.js"></script>
+    <script>
+        // Check role access
+        document.addEventListener('DOMContentLoaded', function() {
+            requireRole(['pemilik', 'admin']);
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klinik Sentosa - Sistem Informasi Klinik</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="#about" class="nav-link">Tentang Kami</a>
+                <a href="#services" class="nav-link">Layanan</a>
+                <a href="#facilities" class="nav-link">Fasilitas</a>
+                <a href="pages/reports.html" class="nav-link">Laporan</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="search-box">
+                    <input type="text" placeholder="Cari di sini..." id="searchInput">
+                    <i class="fas fa-search"></i>
+                </div>
+                <button class="btn-primary" id="registerBtn" onclick="handleRegisterClick()">
+                    <span>Daftar Pasien</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <div class="user-icon" id="userIcon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-content">
+            <h1 class="hero-title">Kelola Pelayanan Pasien dengan Mudah dan Efisien</h1>
+            <p class="hero-subtitle">Sistem terintegrasi untuk mengelola pendaftaran, pemeriksaan, resep obat, dan pembayaran dengan antarmuka yang modern dan user-friendly.</p>
+            <button class="btn-hero" onclick="handleGetStarted()">
+                <span>Mulai Sekarang</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+        <div class="hero-info-box">
+            <div class="info-box-content">
+                <div class="info-avatars">
+                    <div class="avatar"></div>
+                    <div class="avatar"></div>
+                    <div class="avatar"></div>
+                </div>
+                <p>Kami berkomitmen memberikan pelayanan berkualitas tinggi dalam suasana yang ramah dan mendukung.</p>
+            </div>
+        </div>
+        <div class="hero-stats">
+            <div class="stats-box">
+                <span class="stats-number">25K+</span>
+                <span class="stats-label">PASIEN PUAS</span>
+            </div>
+            <div class="stats-avatars">
+                <div class="small-avatar"></div>
+                <div class="small-avatar"></div>
+                <div class="small-avatar"></div>
+                <div class="small-avatar"></div>
+                <div class="small-avatar"></div>
+            </div>
+        </div>
+        <div class="hero-social">
+            <div class="social-icons">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-facebook"></i></a>
+            </div>
+            <div class="app-download">
+                <span>Download Aplikasi</span>
+                <div class="app-buttons">
+                    <a href="#" class="app-btn">
+                        <i class="fab fa-apple"></i>
+                    </a>
+                    <a href="#" class="app-btn">
+                        <i class="fab fa-google-play"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about-section" id="about">
+        <div class="container">
+            <a href="#about" class="section-link">
+                <span>Mari Kenali Kami</span>
+                <i class="fas fa-arrow-right"></i>
+            </a>
+            <h2 class="section-title">Jelajahi Pilihan, Tentang Klinik Sentosa, Kesehatan Anda, Prioritas Kami</h2>
+            
+            <div class="about-content">
+                <div class="about-text">
+                    <h3>Tentang Kami</h3>
+                    <p>Klinik Sentosa adalah platform terpercaya yang menghubungkan pasien dengan layanan kesehatan berkualitas. Kami menyediakan sistem terkomputerisasi yang mengelola seluruh alur pelayanan dari pendaftaran hingga pembayaran.</p>
+                    <button class="btn-secondary" onclick="window.location.href='pages/about.html'">
+                        Pelajari Lebih Lanjut
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="facilities-cards">
+                    <div class="facility-card">
+                        <div class="facility-image">
+                            <i class="fas fa-hospital"></i>
+                        </div>
+                        <h4>Ruang Pemeriksaan</h4>
+                        <p>Fasilitas serbaguna yang menawarkan berbagai layanan medis</p>
+                        <span class="location"><i class="fas fa-map-marker-alt"></i> Klinik Sentosa</span>
+                    </div>
+                    <div class="facility-card">
+                        <div class="facility-image">
+                            <i class="fas fa-pills"></i>
+                        </div>
+                        <h4>Apotek Terintegrasi</h4>
+                        <p>Layanan apotek lengkap dengan stok obat yang terkelola dengan baik</p>
+                        <span class="location"><i class="fas fa-map-marker-alt"></i> Klinik Sentosa</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section class="services-section" id="services">
+        <div class="container">
+            <div class="section-header">
+                <h2>Layanan</h2>
+                <p>Jelajahi Layanan Kami</p>
+                <div class="header-actions">
+                    <div class="search-box-small">
+                        <input type="text" placeholder="Cari layanan...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <button class="btn-view-all">Lihat Semua</button>
+                </div>
+            </div>
+            
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h3>Pendaftaran Pasien</h3>
+                    <p>Daftarkan pasien baru atau cari data pasien lama dengan mudah dan cepat</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <h3>Pemeriksaan Medis</h3>
+                    <p>Pencatatan data vital dan konsultasi dengan dokter yang terintegrasi</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-prescription"></i>
+                    </div>
+                    <h3>Resep & Obat</h3>
+                    <p>Kelola resep dokter dan distribusi obat dengan sistem yang terorganisir</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-cash-register"></i>
+                    </div>
+                    <h3>Pembayaran</h3>
+                    <p>Proses pembayaran yang mudah dengan rincian biaya yang jelas</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Laporan</h3>
+                    <p>Laporan harian dan bulanan untuk pemantauan kinerja klinik</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h3>Manajemen Stok</h3>
+                    <p>Kelola stok obat dengan sistem pencatatan yang akurat</p>
+                </div>
+            </div>
+            
+            <div class="services-cta">
+                <p>Buat janji temu untuk konsultasi personal, perawatan khusus, atau pemeriksaan rutin, dan ambil langkah menuju kesehatan yang lebih baik.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Facilities Section -->
+    <section class="facilities-section" id="facilities">
+        <div class="container">
+            <h2 class="section-title-large">Fasilitas Terdekat, Perawatan Terpercaya, Mudah Dijangkau, Jelajahi!</h2>
+            <p class="section-subtitle">Temukan layanan kesehatan terbaik di sekitar Anda dengan akses mudah ke layanan kesehatan berkualitas yang disesuaikan dengan kebutuhan Anda.</p>
+            <button class="btn-hero" onclick="window.location.href='pages/register.html'">
+                <span>Mulai</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </section>
+
+    <!-- Testimonial Section -->
+    <section class="testimonial-section">
+        <div class="container">
+            <div class="testimonial">
+                <div class="quote-icon">
+                    <i class="fas fa-quote-left"></i>
+                </div>
+                <p class="testimonial-text">"Dengan dedikasi dan keahlian kami dalam layanan kesehatan, kami berusaha memberikan layanan yang bukan hanya pengobatan, tetapi perjalanan yang menenangkan menuju kesehatan yang lebih baik."</p>
+                <div class="testimonial-author">
+                    <div class="author-avatar"></div>
+                    <div class="author-info">
+                        <h4>Dr. Ahmad Wijaya</h4>
+                        <p>Dokter Utama @ Klinik Sentosa</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-main">
+                    <h2>KLINIK SENTOSA - KONTAK</h2>
+                    <nav class="footer-nav">
+                        <a href="#about">Tentang Kami</a>
+                        <a href="#faq">FAQ</a>
+                        <a href="#contact">Hubungi Kami</a>
+                    </nav>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Klinik Sentosa. Hak Cipta Dilindungi.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="scripts/data-integration.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>
+

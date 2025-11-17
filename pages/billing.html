@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembayaran - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="../styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="register.html" class="nav-link">Pendaftaran</a>
+                <a href="examination.html" class="nav-link">Pemeriksaan</a>
+                <a href="pharmacy.html" class="nav-link">Apotek</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <a href="#billing" class="nav-link active">Pembayaran</a>
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Pembayaran</h1>
+                <p>Proses pembayaran dan cetak struk</p>
+            </div>
+
+            <!-- Patient Selection -->
+            <div class="form-container">
+                <div class="form-section">
+                    <h3><i class="fas fa-user"></i> Pilih Pasien</h3>
+                    <div class="form-group">
+                        <label for="billingPatientSelect">Pilih Pasien yang Sudah Selesai Diperiksa</label>
+                        <select id="billingPatientSelect" name="billingPatientSelect" required onchange="loadBillingData(this.value)">
+                            <option value="">-- Pilih Pasien --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Details -->
+            <div id="billingDetails" class="form-container" style="display: none;">
+                <div class="form-section">
+                    <h3><i class="fas fa-receipt"></i> Rincian Pembayaran</h3>
+                    
+                    <div class="billing-summary">
+                        <div class="summary-row">
+                            <span>Biaya Pemeriksaan</span>
+                            <span id="biayaPemeriksaan">Rp 0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Biaya Obat</span>
+                            <span id="biayaObat">Rp 0</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span><strong>Total Pembayaran</strong></span>
+                            <span id="totalBayar"><strong>Rp 0</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h4><i class="fas fa-money-bill-wave"></i> Metode Pembayaran</h4>
+                        <div class="payment-methods">
+                            <label class="payment-method">
+                                <input type="radio" name="paymentMethod" value="cash" checked>
+                                <i class="fas fa-money-bill"></i>
+                                <span>Tunai</span>
+                            </label>
+                            <label class="payment-method">
+                                <input type="radio" name="paymentMethod" value="transfer">
+                                <i class="fas fa-university"></i>
+                                <span>Transfer Bank</span>
+                            </label>
+                            <label class="payment-method">
+                                <input type="radio" name="paymentMethod" value="card">
+                                <i class="fas fa-credit-card"></i>
+                                <span>Kartu Debit/Kredit</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-cancel" onclick="resetBilling()">
+                            <i class="fas fa-times"></i> Batal
+                        </button>
+                        <button type="button" class="btn-secondary" onclick="printReceipt()">
+                            <i class="fas fa-print"></i> Cetak Struk
+                        </button>
+                        <button type="button" class="btn-submit" onclick="processPayment()">
+                            <i class="fas fa-check"></i> Proses Pembayaran
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="queue-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-history"></i> Riwayat Pembayaran</h2>
+                    <button class="btn-refresh" onclick="refreshPaymentHistory()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div id="paymentHistory" class="payment-history-list">
+                    <!-- Payment history will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Receipt Modal -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content receipt-content">
+            <div class="modal-header">
+                <h3>Struk Pembayaran</h3>
+                <button class="modal-close" onclick="closeReceiptModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="receiptBody">
+                <!-- Receipt content will be shown here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeReceiptModal()">Tutup</button>
+                <button class="btn-submit" onclick="window.print()">
+                    <i class="fas fa-print"></i> Cetak
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/billing.js"></script>
+    <script>
+        // Check role access
+        document.addEventListener('DOMContentLoaded', function() {
+            requireRole(['admin', 'pasien']);
+        });
+    </script>
+</body>
+</html>
+

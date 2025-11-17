@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pemeriksaan Medis - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="../styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="register.html" class="nav-link">Pendaftaran</a>
+                <a href="#examination" class="nav-link active">Pemeriksaan</a>
+                <a href="pharmacy.html" class="nav-link">Apotek</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <button class="btn-primary" onclick="window.location.href='billing.html'">
+                    <span>Pembayaran</span>
+                </button>
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Pemeriksaan Medis</h1>
+                <p>Pencatatan data vital dan konsultasi dengan dokter</p>
+            </div>
+
+            <!-- Patient Queue for Examination -->
+            <div class="queue-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Antrian Pemeriksaan</h2>
+                    <button class="btn-refresh" onclick="refreshExaminationQueue()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div id="examinationQueue" class="queue-list">
+                    <!-- Queue items will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Examination Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchExaminationTab('vitals')">
+                    <i class="fas fa-heartbeat"></i>
+                    Data Vital (Perawat)
+                </button>
+                <button class="tab-btn" onclick="switchExaminationTab('consultation')">
+                    <i class="fas fa-stethoscope"></i>
+                    Konsultasi Dokter
+                </button>
+                <button class="tab-btn" onclick="switchExaminationTab('history')">
+                    <i class="fas fa-history"></i>
+                    Riwayat Medis
+                </button>
+            </div>
+
+            <!-- Vitals Tab (Perawat) -->
+            <div id="vitalsTab" class="tab-content active">
+                <div class="form-container">
+                    <form id="vitalsForm" class="patient-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user"></i> Data Pasien</h3>
+                            <div class="form-group">
+                                <label for="patientSelect">Pilih Pasien dari Antrian</label>
+                                <select id="patientSelect" name="patientSelect" required onchange="loadPatientData(this.value)">
+                                    <option value="">-- Pilih Pasien --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3><i class="fas fa-heartbeat"></i> Data Vital</h3>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="tinggi_badan">Tinggi Badan (cm) <span class="required">*</span></label>
+                                    <input type="number" id="tinggi_badan" name="tinggi_badan" required placeholder="170" min="50" max="250">
+                                </div>
+                                <div class="form-group">
+                                    <label for="berat_badan">Berat Badan (kg) <span class="required">*</span></label>
+                                    <input type="number" id="berat_badan" name="berat_badan" required placeholder="70" min="10" max="300" step="0.1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="tensi_darah">Tensi Darah <span class="required">*</span></label>
+                                    <input type="text" id="tensi_darah" name="tensi_darah" required placeholder="120/80" pattern="\d{2,3}/\d{2,3}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="suhu_badan">Suhu Badan (°C)</label>
+                                    <input type="number" id="suhu_badan" name="suhu_badan" placeholder="36.5" min="30" max="45" step="0.1">
+                                </div>
+                        <div class="form-group">
+                            <label for="keluhan_perawat">Keluhan Utama Pasien <span class="required">*</span></label>
+                            <textarea id="keluhan_perawat" name="keluhan_perawat" required rows="3" placeholder="Ringkasan keluhan pasien yang dicatat oleh perawat..."></textarea>
+                        </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="resetVitalsForm()">
+                                <i class="fas fa-times"></i> Batal
+                            </button>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-save"></i> Simpan Data Vital
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Consultation Tab (Dokter) -->
+            <div id="consultationTab" class="tab-content">
+                <div class="form-container">
+                    <form id="consultationForm" class="patient-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user"></i> Data Pasien</h3>
+                            <div class="form-group">
+                                <label for="consultationPatientSelect">Pilih Pasien</label>
+                                <select id="consultationPatientSelect" name="consultationPatientSelect" required onchange="loadPatientForConsultation(this.value)">
+                                    <option value="">-- Pilih Pasien --</option>
+                                </select>
+                                <p class="field-hint">Dokter akan otomatis melihat data vital &amp; keluhan yang sudah dicatat perawat.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3><i class="fas fa-file-medical"></i> Riwayat & Keluhan</h3>
+                            <div id="patientHistoryDisplay" class="history-display">
+                                <!-- Data vital & keluhan dari perawat akan tampil di sini -->
+                            </div>
+                            <div class="form-group">
+                                <label for="keluhan_pasien">Keluhan Pasien (boleh disesuaikan dokter) <span class="required">*</span></label>
+                                <textarea id="keluhan_pasien" name="keluhan_pasien" required rows="4" placeholder="Keluhan utama pasien berdasarkan wawancara dan data perawat..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3><i class="fas fa-stethoscope"></i> Hasil Pemeriksaan</h3>
+                            <div class="form-group">
+                                <label for="hasil_pemeriksaan">Hasil Pemeriksaan Fisik <span class="required">*</span></label>
+                                <textarea id="hasil_pemeriksaan" name="hasil_pemeriksaan" required rows="5" placeholder="Catat hasil pemeriksaan fisik..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="catatan_dokter">Catatan Dokter</label>
+                                <textarea id="catatan_dokter" name="catatan_dokter" rows="4" placeholder="Catatan tambahan dari dokter..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3><i class="fas fa-prescription"></i> Resep Obat</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="needsPrescription" onchange="togglePrescriptionForm()">
+                                    Pasien memerlukan resep obat
+                                </label>
+                                <p class="field-hint">Jika dicentang, resep akan dikirim ke modul Apotek setelah dokter menyimpan hasil pemeriksaan.</p>
+                            </div>
+                            <div id="prescriptionForm" style="display: none;">
+                                <div class="form-group">
+                                    <label for="prescription_notes">Catatan Resep (untuk apotek)</label>
+                                    <textarea id="prescription_notes" name="prescription_notes" rows="3" placeholder="Contoh: Paracetamol 500mg 3x1, Amoxicillin 500mg 3x1, dsb."></textarea>
+                                </div>
+                                <p class="info-text">
+                                    Resep <strong>tidak</strong> diambil langsung oleh dokter. Setelah tombol
+                                    <strong>Simpan Hasil Pemeriksaan</strong> ditekan, resep akan otomatis muncul di
+                                    modul Apotek dan dapat diproses oleh petugas apotek.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="resetConsultationForm()">
+                                <i class="fas fa-times"></i> Batal
+                            </button>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-save"></i> Simpan Hasil Pemeriksaan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="historyTab" class="tab-content">
+                <div class="form-container">
+                    <div class="form-section">
+                        <h3><i class="fas fa-history"></i> Riwayat Medis Pasien</h3>
+                        <div class="form-group">
+                            <label for="historyPatientSelect">Pilih Pasien</label>
+                            <select id="historyPatientSelect" name="historyPatientSelect" required onchange="loadPatientHistory(this.value)">
+                                <option value="">-- Pilih Pasien --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="patientHistoryList" class="history-list">
+                        <!-- Patient history will be displayed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/examination.js"></script>
+    <script>
+        // Check role access
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!requireRole(['dokter', 'perawat', 'admin'])) {
+                return;
+            }
+            
+            const role = getCurrentRole();
+            
+            // Hide tabs based on role
+            if (role === 'perawat') {
+                // Perawat can only access vitals tab
+                document.getElementById('consultationTab').style.display = 'none';
+                document.getElementById('historyTab').style.display = 'none';
+                document.querySelectorAll('.tab-btn')[1].style.display = 'none';
+                document.querySelectorAll('.tab-btn')[2].style.display = 'none';
+            } else if (role === 'dokter') {
+                // Dokter can access consultation and history
+                document.getElementById('vitalsTab').style.display = 'none';
+                document.querySelector('.tab-btn:first-child').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
+

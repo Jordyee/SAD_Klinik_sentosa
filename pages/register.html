@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendaftaran Pasien - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="../styles/animations.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="#register" class="nav-link active">Pendaftaran</a>
+                <a href="examination.html" class="nav-link">Pemeriksaan</a>
+                <a href="pharmacy.html" class="nav-link">Apotek</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <button class="btn-primary" onclick="window.location.href='billing.html'">
+                    <span>Pembayaran</span>
+                </button>
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Pendaftaran Pasien</h1>
+                <p>Daftarkan pasien baru atau cari data pasien lama</p>
+            </div>
+
+            <!-- Tabs for New Patient / Existing Patient -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('new')">
+                    <i class="fas fa-user-plus"></i>
+                    Pasien Baru
+                </button>
+                <button class="tab-btn" onclick="switchTab('existing')">
+                    <i class="fas fa-search"></i>
+                    Pasien Lama
+                </button>
+            </div>
+
+            <!-- New Patient Form -->
+            <div id="newPatientTab" class="tab-content active">
+                <div class="form-container">
+                    <div id="registrationInfo" class="registration-info">
+                        <!-- Pesan informasi setelah pendaftaran akan muncul di sini -->
+                        <p>Isi data di bawah ini untuk mendaftar. Setelah menekan <strong>Simpan &amp; Daftarkan</strong>, nama Anda akan masuk ke <em>Daftar Antrian</em> di bagian bawah halaman.</p>
+                    </div>
+                    <form id="newPatientForm" class="patient-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user"></i> Data Pribadi</h3>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="nama">Nama Lengkap <span class="required">*</span></label>
+                                    <input type="text" id="nama" name="nama" required placeholder="Masukkan nama lengkap">
+                                </div>
+                                <div class="form-group">
+                                    <label for="alamat">Alamat <span class="required">*</span></label>
+                                    <textarea id="alamat" name="alamat" required rows="3" placeholder="Masukkan alamat lengkap"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="no_telp">Nomor Telepon <span class="required">*</span></label>
+                                    <input type="tel" id="no_telp" name="no_telp" required placeholder="08xxxxxxxxxx">
+                                </div>
+                                <div class="form-group">
+                                    <label for="status_pasien">Status Pasien <span class="required">*</span></label>
+                                    <select id="status_pasien" name="status_pasien" required>
+                                        <option value="">-- Pilih Status --</option>
+                                        <option value="umum">Pasien Umum</option>
+                                        <option value="bpjs">BPJS</option>
+                                        <option value="asuransi">Asuransi</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="resetForm()">
+                                <i class="fas fa-times"></i> Batal
+                            </button>
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-save"></i> Simpan & Daftarkan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Existing Patient Search -->
+            <div id="existingPatientTab" class="tab-content">
+                <div class="search-container">
+                    <div class="search-box-large">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="patientSearch" placeholder="Cari berdasarkan nama, nomor telepon, atau ID pasien..." onkeyup="searchPatient(this.value)">
+                    </div>
+                </div>
+
+                <div id="searchResults" class="search-results">
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>Masukkan kata kunci untuk mencari pasien</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Queue List -->
+            <div class="queue-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Daftar Antrian</h2>
+                    <button class="btn-refresh" onclick="refreshQueue()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div id="queueList" class="queue-list">
+                    <!-- Queue items will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/register.js"></script>
+    <script>
+        // Check role access
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!requireRole(['admin', 'pasien'])) {
+                return;
+            }
+            
+            const role = getCurrentRole();
+            if (role === 'pasien') {
+                // Hide admin-only features for pasien
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        });
+    </script>
+</body>
+</html>
+
