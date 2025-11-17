@@ -3,6 +3,8 @@
 let examinationQueue = [];
 let patientVitals = {};
 let medicalRecords = [];
+let consultationDrafts = {};
+let currentConsultationPatientId = null;
 
 // Key untuk sinkronisasi status antrian antar modul
 const QUEUE_STORAGE_KEY = 'patientQueue';
@@ -95,6 +97,117 @@ function populatePatientSelects() {
     });
 }
 
+function persistConsultationDrafts() {
+    localStorage.setItem('consultationDrafts', JSON.stringify(consultationDrafts));
+}
+
+function clearConsultationDraft(patientId) {
+    if (consultationDrafts[patientId]) {
+        delete consultationDrafts[patientId];
+        persistConsultationDrafts();
+    }
+}
+
+function saveConsultationDraft(patientId) {
+    if (!patientId) return;
+
+    const keluhanField = document.getElementById('keluhan_pasien');
+    const hasilField = document.getElementById('hasil_pemeriksaan');
+    const catatanField = document.getElementById('catatan_dokter');
+    const prescriptionNotesField = document.getElementById('prescription_notes');
+    const needsPrescriptionField = document.getElementById('needsPrescription');
+
+    consultationDrafts[patientId] = {
+        keluhan: keluhanField ? keluhanField.value : '',
+        hasil_pemeriksaan: hasilField ? hasilField.value : '',
+        catatan_dokter: catatanField ? catatanField.value : '',
+        needsPrescription: needsPrescriptionField ? needsPrescriptionField.checked : false,
+        prescriptionNotes: prescriptionNotesField ? prescriptionNotesField.value : ''
+    };
+
+    persistConsultationDrafts();
+}
+
+function getConsultationDraft(patientId) {
+    if (!patientId) return null;
+    return consultationDrafts[patientId] || null;
+}
+
+function fillConsultationFormFields(values = {}) {
+    const keluhanField = document.getElementById('keluhan_pasien');
+    const hasilField = document.getElementById('hasil_pemeriksaan');
+    const catatanField = document.getElementById('catatan_dokter');
+    const prescriptionNotesField = document.getElementById('prescription_notes');
+    const needsPrescriptionField = document.getElementById('needsPrescription');
+
+    if (keluhanField) {
+        keluhanField.value = values.keluhan || '';
+    }
+    if (hasilField) {
+        hasilField.value = values.hasil_pemeriksaan || '';
+    }
+    if (catatanField) {
+        catatanField.value = values.catatan_dokter || '';
+    }
+    if (needsPrescriptionField) {
+        needsPrescriptionField.checked = !!values.needsPrescription;
+    }
+    if (prescriptionNotesField) {
+        prescriptionNotesField.value = values.prescriptionNotes || '';
+    }
+
+    togglePrescriptionForm();
+}
+
+function buildPrescriptionItemsFromNotes(noteText) {
+    if (!noteText) return [];
+
+    const segments = noteText
+        .split(/\r?\n|,/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    return segments.map((line, index) => {
+        const parts = line.split('-').map(part => part.trim()).filter(Boolean);
+        const medicineName = parts.length > 0 ? parts[0] : line;
+        const detail = parts.length > 1 ? parts.slice(1).join(' - ') : '';
+        const quantityMatch = line.match(/(\d+)\s*(tablet|tab|kapsul|caps|botol|box|strip|sachet)/i);
+
+        return {
+            itemId: `RX${Date.now()}_${index}`,
+            medicineId: null,
+            medicineName: medicineName,
+            quantity: quantityMatch ? parseInt(quantityMatch[1], 10) : null,
+            dosage: detail,
+            instructions: detail || line,
+            rawText: line
+        };
+    });
+}
+
+function attachConsultationDraftListeners() {
+    const fields = ['keluhan_pasien', 'hasil_pemeriksaan', 'catatan_dokter', 'prescription_notes'];
+    fields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', () => {
+                if (currentConsultationPatientId) {
+                    saveConsultationDraft(currentConsultationPatientId);
+                }
+            });
+        }
+    });
+
+    const needsPrescriptionField = document.getElementById('needsPrescription');
+    if (needsPrescriptionField) {
+        needsPrescriptionField.addEventListener('change', () => {
+            if (currentConsultationPatientId) {
+                saveConsultationDraft(currentConsultationPatientId);
+            }
+        });
+    }
+}
+
 // Load patient data for vitals
 function loadPatientData(patientId) {
     // In real app, fetch from API
@@ -113,7 +226,22 @@ function loadPatientData(patientId) {
 
 // Load patient for consultation
 function loadPatientForConsultation(patientId) {
+    currentConsultationPatientId = patientId || null;
     const patient = examinationQueue.find(item => item.patient.id === patientId);
+
+    if (!patientId) {
+        const historyDisplay = document.getElementById('patientHistoryDisplay');
+        const historyList = document.getElementById('patientHistoryList');
+        if (historyDisplay) {
+            historyDisplay.innerHTML = '';
+        }
+        if (historyList) {
+            historyList.innerHTML = '';
+        }
+        fillConsultationFormFields();
+        return;
+    }
+
     if (patient) {
         // Load vitals & keluhan dari perawat
         const vitals = patientVitals[patientId];
@@ -149,12 +277,6 @@ function loadPatientForConsultation(patientId) {
                     ` : ''}
                 </div>
             `;
-
-            // Prefill textarea keluhan dokter dengan keluhan dari perawat (boleh disesuaikan)
-            const keluhanField = document.getElementById('keluhan_pasien');
-            if (keluhanField && !keluhanField.value) {
-                keluhanField.value = vitals.keluhan_perawat || '';
-            }
         } else {
             document.getElementById('patientHistoryDisplay').innerHTML = `
                 <div class="empty-state">
@@ -166,6 +288,19 @@ function loadPatientForConsultation(patientId) {
         
         // Load previous medical records
         loadPatientHistory(patientId);
+
+        const draft = getConsultationDraft(patientId);
+        if (draft) {
+            fillConsultationFormFields(draft);
+        } else {
+            fillConsultationFormFields({
+                keluhan: (patientVitals[patientId] && patientVitals[patientId].keluhan_perawat) || '',
+                hasil_pemeriksaan: '',
+                catatan_dokter: '',
+                needsPrescription: false,
+                prescriptionNotes: ''
+            });
+        }
     }
 }
 
@@ -212,6 +347,7 @@ function loadPatientHistory(patientId) {
 function togglePrescriptionForm() {
     const checkbox = document.getElementById('needsPrescription');
     const form = document.getElementById('prescriptionForm');
+    if (!checkbox || !form) return;
     form.style.display = checkbox.checked ? 'block' : 'none';
 }
 
@@ -228,6 +364,8 @@ function resetConsultationForm() {
     document.getElementById('patientHistoryDisplay').innerHTML = '';
     document.getElementById('needsPrescription').checked = false;
     togglePrescriptionForm();
+    currentConsultationPatientId = null;
+    fillConsultationFormFields();
 }
 
 // Refresh examination queue
@@ -240,6 +378,7 @@ function getStatusText(status) {
     const statusMap = {
         'waiting': 'Menunggu pemeriksaan (belum diperiksa perawat)',
         'examining': 'Sudah diperiksa perawat / menunggu dokter',
+        'waiting_prescription': 'Menunggu resep dari apotek',
         'completed': 'Selesai diperiksa dokter'
     };
     return statusMap[status] || status;
@@ -312,6 +451,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Pilih pasien terlebih dahulu');
                 return;
             }
+            const patientData = examinationQueue.find(item => item.patient.id === patientId);
+            const prescriptionNotesValue = document.getElementById('prescription_notes').value;
+            const prescriptionItems = buildPrescriptionItemsFromNotes(prescriptionNotesValue);
             
             const consultationData = {
                 patientId: patientId,
@@ -320,7 +462,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasil_pemeriksaan: document.getElementById('hasil_pemeriksaan').value,
                 catatan_dokter: document.getElementById('catatan_dokter').value,
                 needsPrescription: document.getElementById('needsPrescription').checked,
-                prescriptionNotes: document.getElementById('prescription_notes').value || null,
+                prescriptionNotes: prescriptionNotesValue || null,
+                prescriptionItems: prescriptionItems,
                 status: 'completed'
             };
             
@@ -330,16 +473,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (consultationData.needsPrescription && typeof syncPrescriptionToPharmacy === 'function') {
                 syncPrescriptionToPharmacy(patientId, {
                     notes: consultationData.prescriptionNotes,
-                    items: [] // Untuk saat ini hanya catatan, tanpa detail struktur obat per item
+                    items: consultationData.prescriptionItems,
+                    patientInfo: patientData ? patientData.patient : null
                 });
             }
             
-            // Update queue status: selesai diperiksa dokter
-            updateQueueStatus(patientId, 'completed');
+            // Update queue status: selesai diperiksa dokter atau menunggu resep
+            const newStatus = consultationData.needsPrescription ? 'waiting_prescription' : 'completed';
+            updateQueueStatus(patientId, newStatus);
             
             // Save to localStorage
             localStorage.setItem('medicalRecords', JSON.stringify(medicalRecords));
             localStorage.setItem('patientVitals', JSON.stringify(patientVitals));
+            clearConsultationDraft(patientId);
             
             alert('Hasil pemeriksaan berhasil disimpan!');
             resetConsultationForm();
@@ -357,6 +503,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedVitals) {
         patientVitals = JSON.parse(savedVitals);
     }
+
+    const savedDrafts = localStorage.getItem('consultationDrafts');
+    if (savedDrafts) {
+        try {
+            consultationDrafts = JSON.parse(savedDrafts);
+        } catch (error) {
+            console.warn('Gagal memuat draft konsultasi dari localStorage:', error);
+            consultationDrafts = {};
+        }
+    }
+
+    attachConsultationDraftListeners();
 });
 
 

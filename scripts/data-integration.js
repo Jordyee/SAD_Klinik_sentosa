@@ -21,38 +21,27 @@ function initializeSampleData() {
 }
 
 // Sync prescription from examination to pharmacy
-function syncPrescriptionToPharmacy(patientId, prescriptionData) {
+function syncPrescriptionToPharmacy(patientId, prescriptionData = {}) {
     const prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    
+    const patientInfo = prescriptionData.patientInfo || getPatientData(patientId) || {};
+
     const prescription = {
         id: 'PR' + Date.now(),
         patientId: patientId,
-        patientName: getPatientName(patientId),
+        patientName: patientInfo.nama || getPatientName(patientId),
+        patientPhone: patientInfo.no_telp || '',
         date: new Date().toISOString(),
         notes: prescriptionData.notes || '',
         status: 'pending',
-        items: prescriptionData.items || []
+        items: Array.isArray(prescriptionData.items) ? prescriptionData.items : [],
+        meta: prescriptionData.meta || {}
     };
-    
+
     prescriptions.push(prescription);
     localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
 }
 
-// Get patient name by ID
-function getPatientName(patientId) {
-    const savedQueue = localStorage.getItem('patientQueue');
-    if (savedQueue) {
-        const queue = JSON.parse(savedQueue);
-        const patient = queue.find(item => item.patient.id === patientId);
-        if (patient) {
-            return patient.patient.nama;
-        }
-    }
-    return 'Unknown Patient';
-}
-
-// Get patient data
-function getPatientData(patientId) {
+function findPatientInQueue(patientId) {
     const savedQueue = localStorage.getItem('patientQueue');
     if (savedQueue) {
         const queue = JSON.parse(savedQueue);
@@ -61,6 +50,38 @@ function getPatientData(patientId) {
             return patient.patient;
         }
     }
+    return null;
+}
+
+// Get patient name by ID
+function getPatientName(patientId) {
+    const patient = getPatientData(patientId);
+    if (patient) {
+        return patient.nama;
+    }
+    return 'Unknown Patient';
+}
+
+// Get patient data
+function getPatientData(patientId) {
+    const queuePatient = findPatientInQueue(patientId);
+    if (queuePatient) {
+        return queuePatient;
+    }
+
+    const savedPatients = localStorage.getItem('patients');
+    if (savedPatients) {
+        try {
+            const patients = JSON.parse(savedPatients);
+            const patient = patients.find(item => item.id === patientId);
+            if (patient) {
+                return patient;
+            }
+        } catch (error) {
+            console.warn('Gagal membaca data pasien dari localStorage:', error);
+        }
+    }
+
     return null;
 }
 

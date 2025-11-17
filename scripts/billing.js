@@ -63,36 +63,73 @@ function populateBillingPatientSelect() {
 // Load billing data for selected patient
 function loadBillingData(patientId) {
     const billingDetails = document.getElementById('billingDetails');
-    const visit = completedVisits.find(v => v.patientId === patientId);
     
+    // Check if patient has completed visit
+    const visit = completedVisits.find(v => v.patientId === patientId);
     if (!visit) {
         alert('Data kunjungan tidak ditemukan');
         return;
     }
     
-    // Calculate examination fee
+    // Calculate examination fee (only once per visit)
     const biayaPemeriksaan = biayaPemeriksaanDefault;
     
-    // Calculate medicine fee
+    // Calculate medicine fee from UNPAID prescriptions only
     let biayaObat = 0;
+    const prescriptionIds = [];
+    
+    // Get all processed prescriptions for this patient
     const savedPrescriptions = localStorage.getItem('processedPrescriptions');
     if (savedPrescriptions) {
         const prescriptions = JSON.parse(savedPrescriptions);
-        const patientPrescription = prescriptions.find(p => p.patientId === patientId);
+        const patientPrescriptions = prescriptions.filter(p => p.patientId === patientId);
         
-        if (patientPrescription) {
-            // Get medicine prices
-            const savedMedicines = localStorage.getItem('medicines');
-            if (savedMedicines) {
-                const medicines = JSON.parse(savedMedicines);
-                patientPrescription.items.forEach(item => {
-                    const medicine = medicines.find(m => m.id === item.medicineId);
-                    if (medicine) {
-                        biayaObat += medicine.harga * item.quantity;
+        // Get payment history to check which prescriptions are already paid
+        const savedPayments = localStorage.getItem('paymentHistory');
+        const paidPrescriptionIds = new Set();
+        if (savedPayments) {
+            try {
+                const payments = JSON.parse(savedPayments);
+                payments.forEach(payment => {
+                    if (payment.patientId === patientId && payment.prescriptionIds) {
+                        payment.prescriptionIds.forEach(pid => paidPrescriptionIds.add(pid));
                     }
                 });
+            } catch (e) {
+                console.warn('Error reading payment history:', e);
             }
         }
+        
+        // Calculate cost only for unpaid prescriptions
+        const savedMedicines = localStorage.getItem('medicines');
+        const medicines = savedMedicines ? JSON.parse(savedMedicines) : [];
+        
+        patientPrescriptions.forEach(prescription => {
+            // Skip if this prescription is already paid
+            if (paidPrescriptionIds.has(prescription.id)) {
+                return;
+            }
+            
+            prescriptionIds.push(prescription.id);
+            
+            if (Array.isArray(prescription.items) && prescription.items.length > 0) {
+                prescription.items.forEach(item => {
+                    if (item.medicineId) {
+                        const medicine = medicines.find(m => m.id === item.medicineId);
+                        if (medicine) {
+                            const qty = typeof item.quantity === 'number' ? item.quantity : (item.quantity ? parseInt(item.quantity, 10) : 1);
+                            if (!Number.isNaN(qty)) {
+                                biayaObat += medicine.harga * qty;
+                            }
+                        }
+                    }
+                });
+            } else if (prescription.notes) {
+                // For unstructured prescriptions, estimate or use default
+                // This is a fallback - ideally all prescriptions should have structured items
+                biayaObat += 0; // Could add default fee here if needed
+            }
+        });
     }
     
     const totalBayar = biayaPemeriksaan + biayaObat;
@@ -102,11 +139,12 @@ function loadBillingData(patientId) {
     document.getElementById('biayaObat').textContent = `Rp ${biayaObat.toLocaleString('id-ID')}`;
     document.getElementById('totalBayar').innerHTML = `<strong>Rp ${totalBayar.toLocaleString('id-ID')}</strong>`;
     
-    // Store billing data
+    // Store billing data including prescription IDs
     billingDetails.dataset.patientId = patientId;
     billingDetails.dataset.biayaPemeriksaan = biayaPemeriksaan;
     billingDetails.dataset.biayaObat = biayaObat;
     billingDetails.dataset.totalBayar = totalBayar;
+    billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds);
     
     billingDetails.style.display = 'block';
 }
@@ -121,10 +159,17 @@ function processPayment() {
         return;
     }
     
-    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+    if (!paymentMethod) {
+        alert('Pilih metode pembayaran terlebih dahulu');
+        return;
+    }
+    
     const totalBayar = parseInt(billingDetails.dataset.totalBayar);
     const biayaPemeriksaan = parseInt(billingDetails.dataset.biayaPemeriksaan);
     const biayaObat = parseInt(billingDetails.dataset.biayaObat);
+    const prescriptionIdsStr = billingDetails.dataset.prescriptionIds || '[]';
+    const prescriptionIds = JSON.parse(prescriptionIdsStr);
     
     // Get patient data
     const savedQueue = localStorage.getItem('patientQueue');
@@ -137,7 +182,7 @@ function processPayment() {
         }
     }
     
-    // Create payment record
+    // Create payment record with prescription IDs
     const payment = {
         id: 'PAY' + Date.now(),
         patientId: patientId,
@@ -146,7 +191,8 @@ function processPayment() {
         biayaPemeriksaan: biayaPemeriksaan,
         biayaObat: biayaObat,
         totalBayar: totalBayar,
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod.value,
+        prescriptionIds: prescriptionIds, // Track which prescriptions are paid
         status: 'completed'
     };
     
@@ -235,32 +281,51 @@ function printReceipt() {
         return;
     }
     
-    // Get patient data
-    const savedQueue = localStorage.getItem('patientQueue');
-    let patientName = 'Unknown';
-    if (savedQueue) {
-        const queue = JSON.parse(savedQueue);
-        const patient = queue.find(item => item.patient.id === patientId);
-        if (patient) {
-            patientName = patient.patient.nama;
+    // Check if there's a recent payment for this patient
+    const savedPayments = localStorage.getItem('paymentHistory');
+    let payment = null;
+    
+    if (savedPayments) {
+        try {
+            const payments = JSON.parse(savedPayments);
+            // Find the most recent payment for this patient
+            payment = payments
+                .filter(p => p.patientId === patientId)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        } catch (e) {
+            console.warn('Error reading payment history:', e);
         }
     }
     
-    const biayaPemeriksaan = parseInt(billingDetails.dataset.biayaPemeriksaan);
-    const biayaObat = parseInt(billingDetails.dataset.biayaObat);
-    const totalBayar = parseInt(billingDetails.dataset.totalBayar);
-    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-    
-    const payment = {
-        id: 'PAY' + Date.now(),
-        patientId: patientId,
-        patientName: patientName,
-        date: new Date().toISOString(),
-        biayaPemeriksaan: biayaPemeriksaan,
-        biayaObat: biayaObat,
-        totalBayar: totalBayar,
-        paymentMethod: paymentMethod
-    };
+    // If no payment found, create a preview from current billing data
+    if (!payment) {
+        const savedQueue = localStorage.getItem('patientQueue');
+        let patientName = 'Unknown';
+        if (savedQueue) {
+            const queue = JSON.parse(savedQueue);
+            const patient = queue.find(item => item.patient.id === patientId);
+            if (patient) {
+                patientName = patient.patient.nama;
+            }
+        }
+        
+        const biayaPemeriksaan = parseInt(billingDetails.dataset.biayaPemeriksaan) || 0;
+        const biayaObat = parseInt(billingDetails.dataset.biayaObat) || 0;
+        const totalBayar = parseInt(billingDetails.dataset.totalBayar) || 0;
+        const paymentMethodEl = document.querySelector('input[name="paymentMethod"]:checked');
+        const paymentMethod = paymentMethodEl ? paymentMethodEl.value : 'cash';
+        
+        payment = {
+            id: 'PREVIEW-' + Date.now(),
+            patientId: patientId,
+            patientName: patientName,
+            date: new Date().toISOString(),
+            biayaPemeriksaan: biayaPemeriksaan,
+            biayaObat: biayaObat,
+            totalBayar: totalBayar,
+            paymentMethod: paymentMethod
+        };
+    }
     
     showReceipt(payment);
 }

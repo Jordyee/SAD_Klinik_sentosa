@@ -29,29 +29,58 @@ function switchPharmacyTab(tab) {
 
 // Load prescriptions from examination module
 function loadPrescriptions() {
-    // In real app, fetch from API
-    // For now, check localStorage or use sample data
-    const savedPrescriptions = localStorage.getItem('pendingPrescriptions');
-    if (savedPrescriptions) {
-        prescriptions = JSON.parse(savedPrescriptions);
-    } else {
-        // Sample prescription data
-        prescriptions = [
-            {
-                id: 'PR001',
-                patientId: 'P001',
-                patientName: 'Ahmad Wijaya',
-                date: new Date().toISOString(),
-                notes: 'Obat untuk demam dan sakit kepala',
-                status: 'pending',
-                items: [
-                    { medicineId: 'M001', medicineName: 'Paracetamol 500mg', quantity: 2, dosage: '3x1 setelah makan' }
-                ]
-            }
-        ];
+    try {
+        prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
+    } catch (error) {
+        console.error('Gagal memuat data resep dari localStorage:', error);
+        prescriptions = [];
     }
-    
+
+    prescriptions.sort((a, b) => new Date(b.date) - new Date(a.date));
     displayPrescriptions();
+}
+
+function formatPrescriptionItem(item, options = {}) {
+    const { asText = false } = options;
+    if (!item) {
+        return asText ? 'Detail resep tidak ditemukan' : '<li>Detail resep tidak ditemukan</li>';
+    }
+
+    const name = item.medicineName || item.rawText || item.description || 'Obat tanpa nama';
+    let quantityLabel = '';
+
+    if (typeof item.quantity === 'number' && !Number.isNaN(item.quantity)) {
+        quantityLabel = `${item.quantity} unit`;
+    } else if (item.quantity) {
+        quantityLabel = item.quantity;
+    }
+
+    const dosage = item.dosage || item.instructions || '';
+    const detailParts = [quantityLabel, dosage].filter(Boolean);
+    const detailText = detailParts.length ? ` - ${detailParts.join(' | ')}` : '';
+    const content = `${name}${detailText}`;
+
+    if (asText) {
+        return content;
+    }
+
+    return `<li>${content}</li>`;
+}
+
+function renderPrescriptionItems(prescription) {
+    if (!Array.isArray(prescription.items) || prescription.items.length === 0) {
+        return `
+            <ul>
+                <li>Detail obat belum ditentukan. Gunakan catatan resep sebagai acuan.</li>
+            </ul>
+        `;
+    }
+
+    return `
+        <ul>
+            ${prescription.items.map(formatPrescriptionItem).join('')}
+        </ul>
+    `;
 }
 
 // Display prescriptions
@@ -73,7 +102,10 @@ function displayPrescriptions() {
             <div class="prescription-header">
                 <div>
                     <h4>Resep #${prescription.id}</h4>
-                    <p class="prescription-patient">Pasien: ${prescription.patientName}</p>
+                    <p class="prescription-patient">
+                        Pasien: ${prescription.patientName || 'Tidak diketahui'}
+                        ${prescription.patientPhone ? `<span class="prescription-phone">(${prescription.patientPhone})</span>` : ''}
+                    </p>
                     <p class="prescription-date">${new Date(prescription.date).toLocaleDateString('id-ID')}</p>
                 </div>
                 <div class="prescription-status status-${prescription.status}">
@@ -82,11 +114,7 @@ function displayPrescriptions() {
             </div>
             <div class="prescription-items">
                 <strong>Daftar Obat:</strong>
-                <ul>
-                    ${prescription.items.map(item => `
-                        <li>${item.medicineName} - ${item.quantity} box (${item.dosage})</li>
-                    `).join('')}
-                </ul>
+                ${renderPrescriptionItems(prescription)}
             </div>
             ${prescription.notes ? `
             <div class="prescription-notes">
@@ -112,52 +140,99 @@ function viewPrescription(prescriptionId) {
     const modal = document.getElementById('prescriptionModal');
     const modalBody = document.getElementById('prescriptionModalBody');
     
+    // Build items section - always show items if available
+    let itemsSection = '';
+    if (Array.isArray(prescription.items) && prescription.items.length > 0) {
+        // Check if any item has medicineId (structured)
+        const hasStructuredItems = prescription.items.some(item => item.medicineId);
+        
+        if (hasStructuredItems) {
+            // Show table for structured items
+            itemsSection = `
+                <div class="detail-section">
+                    <h4>Daftar Obat</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Obat</th>
+                                <th>Jumlah</th>
+                                <th>Dosis</th>
+                                <th>Stok Tersedia</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${prescription.items.map(item => {
+                                if (!item.medicineId) {
+                                    const fallbackText = formatPrescriptionItem(item, { asText: true });
+                                    return `
+                                        <tr>
+                                            <td colspan="5">${fallbackText}</td>
+                                        </tr>
+                                    `;
+                                }
+                                const medicine = medicines.find(m => m.id === item.medicineId);
+                                const available = medicine ? medicine.stok : 0;
+                                const requestedQty = typeof item.quantity === 'number' ? item.quantity : (item.quantity ? parseInt(item.quantity, 10) : null);
+                                const canFulfill = requestedQty !== null ? available >= requestedQty : available > 0;
+                                const qtyDisplay = requestedQty !== null ? `${requestedQty}` : '-';
+                                return `
+                                    <tr>
+                                        <td>${item.medicineName || 'N/A'}</td>
+                                        <td>${qtyDisplay}</td>
+                                        <td>${item.dosage || item.instructions || '-'}</td>
+                                        <td>${available}</td>
+                                        <td>
+                                            <span class="status-badge ${canFulfill ? 'status-success' : 'status-error'}">
+                                                ${canFulfill ? 'Tersedia' : 'Stok Kurang'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            // Show list for unstructured items
+            itemsSection = `
+                <div class="detail-section">
+                    <h4>Daftar Obat</h4>
+                    ${renderPrescriptionItems(prescription)}
+                </div>
+            `;
+        }
+    } else if (prescription.notes) {
+        // If no items but has notes, show notes as items
+        itemsSection = `
+            <div class="detail-section">
+                <h4>Daftar Obat</h4>
+                <p>${prescription.notes}</p>
+            </div>
+        `;
+    } else {
+        itemsSection = `
+            <div class="detail-section">
+                <h4>Daftar Obat</h4>
+                <p>Tidak ada detail obat yang tersedia.</p>
+            </div>
+        `;
+    }
+    
     modalBody.innerHTML = `
         <div class="prescription-detail">
             <div class="detail-section">
                 <h4>Informasi Pasien</h4>
-                <p><strong>Nama:</strong> ${prescription.patientName}</p>
-                <p><strong>ID Pasien:</strong> ${prescription.patientId}</p>
+                <p><strong>Nama:</strong> ${prescription.patientName || 'Tidak diketahui'}</p>
+                <p><strong>ID Pasien:</strong> ${prescription.patientId || 'N/A'}</p>
+                ${prescription.patientPhone ? `<p><strong>Kontak:</strong> ${prescription.patientPhone}</p>` : ''}
                 <p><strong>Tanggal:</strong> ${new Date(prescription.date).toLocaleDateString('id-ID')}</p>
             </div>
+            ${itemsSection}
+            ${prescription.notes && Array.isArray(prescription.items) && prescription.items.length > 0 ? `
             <div class="detail-section">
-                <h4>Daftar Obat</h4>
-                <table class="detail-table">
-                    <thead>
-                        <tr>
-                            <th>Nama Obat</th>
-                            <th>Jumlah</th>
-                            <th>Dosis</th>
-                            <th>Stok Tersedia</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${prescription.items.map(item => {
-                            const medicine = medicines.find(m => m.id === item.medicineId);
-                            const available = medicine ? medicine.stok : 0;
-                            const canFulfill = available >= item.quantity;
-                            
-                            return `
-                                <tr>
-                                    <td>${item.medicineName}</td>
-                                    <td>${item.quantity} box</td>
-                                    <td>${item.dosage}</td>
-                                    <td>${available}</td>
-                                    <td>
-                                        <span class="status-badge ${canFulfill ? 'status-success' : 'status-error'}">
-                                            ${canFulfill ? 'Tersedia' : 'Stok Kurang'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-            ${prescription.notes ? `
-            <div class="detail-section">
-                <h4>Catatan</h4>
+                <h4>Catatan Tambahan</h4>
                 <p>${prescription.notes}</p>
             </div>
             ` : ''}
@@ -166,6 +241,14 @@ function viewPrescription(prescriptionId) {
     
     modal.style.display = 'block';
     modal.dataset.prescriptionId = prescriptionId;
+    
+    // Prevent modal content clicks from closing modal
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+        modalContent.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
 }
 
 // Process prescription
@@ -175,31 +258,39 @@ function processPrescription() {
     
     if (!prescription) return;
     
-    // Check if all medicines are available
-    let allAvailable = true;
-    const unavailableMedicines = [];
-    
-    prescription.items.forEach(item => {
-        const medicine = medicines.find(m => m.id === item.medicineId);
-        if (!medicine || medicine.stok < item.quantity) {
-            allAvailable = false;
-            unavailableMedicines.push(item.medicineName);
+    const structuredItems = Array.isArray(prescription.items)
+        ? prescription.items.filter(item => item.medicineId && (typeof item.quantity === 'number' || typeof item.quantity === 'string'))
+        : [];
+
+    if (structuredItems.length > 0) {
+        // Check if all medicines are available
+        let allAvailable = true;
+        const unavailableMedicines = [];
+        
+        structuredItems.forEach(item => {
+            const medicine = medicines.find(m => m.id === item.medicineId);
+            const requiredQty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10);
+            if (!medicine || Number.isNaN(requiredQty) || medicine.stok < requiredQty) {
+                allAvailable = false;
+                unavailableMedicines.push(item.medicineName || item.medicineId);
+            }
+        });
+        
+        if (!allAvailable) {
+            alert(`Tidak dapat memproses resep. Obat berikut stoknya kurang:\n${unavailableMedicines.join('\n')}`);
+            return;
         }
-    });
-    
-    if (!allAvailable) {
-        alert(`Tidak dapat memproses resep. Obat berikut stoknya kurang:\n${unavailableMedicines.join('\n')}`);
-        return;
+        
+        // Deduct stock
+        structuredItems.forEach(item => {
+            const medicine = medicines.find(m => m.id === item.medicineId);
+            const requiredQty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10);
+            if (medicine && !Number.isNaN(requiredQty)) {
+                medicine.stok -= requiredQty;
+            }
+        });
     }
-    
-    // Deduct stock
-    prescription.items.forEach(item => {
-        const medicine = medicines.find(m => m.id === item.medicineId);
-        if (medicine) {
-            medicine.stok -= item.quantity;
-        }
-    });
-    
+
     // Update prescription status
     prescription.status = 'processed';
     processedPrescriptions.push(prescription);
@@ -209,6 +300,7 @@ function processPrescription() {
     localStorage.setItem('medicines', JSON.stringify(medicines));
     localStorage.setItem('processedPrescriptions', JSON.stringify(processedPrescriptions));
     localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
+    updateQueueStatusFromPharmacy(prescription.patientId);
     
     alert('Resep berhasil diproses! Stok obat telah dikurangi.');
     closePrescriptionModal();
@@ -218,7 +310,10 @@ function processPrescription() {
 
 // Close prescription modal
 function closePrescriptionModal() {
-    document.getElementById('prescriptionModal').style.display = 'none';
+    const modal = document.getElementById('prescriptionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // Display stock table
@@ -378,6 +473,29 @@ function getPrescriptionStatusText(status) {
     return statusMap[status] || status;
 }
 
+function updateQueueStatusFromPharmacy(patientId) {
+    if (!patientId) return;
+    const savedQueue = localStorage.getItem('patientQueue');
+    if (!savedQueue) return;
+
+    try {
+        const queue = JSON.parse(savedQueue);
+        let changed = false;
+        queue.forEach(item => {
+            if (item.patient.id === patientId) {
+                item.status = 'completed';
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            localStorage.setItem('patientQueue', JSON.stringify(queue));
+        }
+    } catch (error) {
+        console.error('Gagal memperbarui status antrian setelah proses apotek:', error);
+    }
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Load saved medicines
@@ -385,12 +503,30 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedMedicines) {
         medicines = JSON.parse(savedMedicines);
     }
+
+    const savedProcessed = localStorage.getItem('processedPrescriptions');
+    if (savedProcessed) {
+        processedPrescriptions = JSON.parse(savedProcessed);
+    }
     
     // Load prescriptions
     loadPrescriptions();
+
+    window.addEventListener('storage', function(event) {
+        if (event.key === 'pendingPrescriptions') {
+            loadPrescriptions();
+        }
+        if (event.key === 'medicines') {
+            const latestMedicines = localStorage.getItem('medicines');
+            if (latestMedicines) {
+                medicines = JSON.parse(latestMedicines);
+                displayStockTable();
+            }
+        }
+    });
     
     // Close modal when clicking outside
-    window.onclick = function(event) {
+    window.addEventListener('click', function(event) {
         const prescriptionModal = document.getElementById('prescriptionModal');
         const addMedicineModal = document.getElementById('addMedicineModal');
         
@@ -400,6 +536,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (event.target === addMedicineModal) {
             closeAddMedicineModal();
         }
-    };
+    });
+    
+    // Ensure modal close buttons work
+    const prescriptionModalClose = document.querySelector('#prescriptionModal .modal-close');
+    if (prescriptionModalClose) {
+        prescriptionModalClose.addEventListener('click', closePrescriptionModal);
+    }
+    
+    const prescriptionModalCancel = document.querySelector('#prescriptionModal .btn-cancel');
+    if (prescriptionModalCancel) {
+        prescriptionModalCancel.addEventListener('click', closePrescriptionModal);
+    }
 });
 

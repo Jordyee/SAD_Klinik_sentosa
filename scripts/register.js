@@ -133,6 +133,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial queue display
     displayQueue();
+
+    const role = typeof getCurrentRole === 'function' ? getCurrentRole() : null;
+    if (role === 'pasien') {
+        switchTab('existing');
+        const info = document.getElementById('registrationInfo');
+        if (info) {
+            info.innerHTML = `
+                <div class="info-success">
+                    <strong>Pasien lama</strong> dapat langsung mencari data dengan mengetik nama, nomor telepon, atau ID pada tab <em>Pasien Lama</em> di atas.
+                    Jika data Anda belum muncul, silakan hubungi petugas administrasi untuk memastikan pendaftaran Anda tercatat.
+                </div>
+            `;
+        }
+        const searchField = document.getElementById('patientSearch');
+        if (searchField) {
+            setTimeout(() => searchField.focus(), 300);
+        }
+    }
 });
 
 // Search Patient
@@ -276,6 +294,7 @@ function getStatusText(status) {
     const statusMap = {
         'waiting': 'Menunggu',
         'examining': 'Diperiksa',
+        'waiting_prescription': 'Menunggu Resep',
         'completed': 'Selesai'
     };
     return statusMap[status] || status;
