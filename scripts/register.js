@@ -25,17 +25,30 @@ function handlePatientRoleView() {
     }
 
     const existingPatientData = findPatientByUsername(user.username);
-    const newPatientForm = document.getElementById('newPatientForm');
+    const newPatientTab = document.querySelector('.tab-btn[data-tab="new"]');
+    const existingPatientTabButton = document.querySelector('.tab-btn[data-tab="existing"]');
     const registrationInfo = document.getElementById('registrationInfo');
-    const newPatientTab = document.querySelector('.tab-btn[onclick*="new"]');
 
     if (existingPatientData) {
-        newPatientForm.style.display = 'none';
-        if(newPatientTab) newPatientTab.style.display = 'none';
-        registrationInfo.innerHTML = `<div class="info-static"><h3>Data Pasien Anda Sudah Terdaftar</h3><p>Gunakan tab "Pasien Lama" untuk masuk antrian.</p></div>`;
-        switchTab('existing');
+        // Hide the "New Patient" tab button and its content
+        if (newPatientTab) newPatientTab.style.display = 'none';
+        document.getElementById('new-tab').classList.remove('active');
+        
+        // Update the info message
+        const infoContainer = document.getElementById('new-tab').querySelector('.form-container');
+        if(infoContainer) {
+            infoContainer.innerHTML = `<div class="info-static"><h3>Data Pasien Anda Sudah Terdaftar</h3><p>Gunakan tab "Pasien Lama" untuk masuk antrian.</p></div>`;
+        }
+
+        // Programmatically switch to the "Existing Patient" tab
+        if (existingPatientTabButton) {
+            existingPatientTabButton.click();
+        }
+
     } else {
-        registrationInfo.innerHTML = '<p>Data pasien Anda belum terdaftar. Silakan isi formulir di bawah ini.</p>';
+        if (registrationInfo) {
+            registrationInfo.innerHTML = '<p>Data pasien Anda belum terdaftar. Silakan isi formulir di bawah ini.</p>';
+        }
     }
 }
 

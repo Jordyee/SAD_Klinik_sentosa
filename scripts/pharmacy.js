@@ -11,6 +11,7 @@ function loadPharmacyData() {
 }
 
 function setupPharmacyListeners() {
+    // Modal closing logic
     window.onclick = function(event) {
         const modals = document.querySelectorAll('.modal');
         modals.forEach(modal => {
@@ -19,28 +20,26 @@ function setupPharmacyListeners() {
             }
         });
     };
+
+    // New, robust tab switching logic
+    const tabs = document.querySelectorAll('.tabs .tab-btn');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            tab.classList.add('active');
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+
+            // Refresh content on tab switch
+            if (tabName === 'stock') displayStockTable();
+            else if (tabName === 'history') displayPharmacyHistory();
+            else displayPrescriptions();
+        });
+    });
 }
-
-
-// --- Tab Switching ---
-function switchPharmacyTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    const tabEl = document.querySelector(`.tab-btn[onclick*="${tab}"]`);
-    const contentEl = document.getElementById(`${tab}Tab`);
-    if(tabEl) tabEl.classList.add('active');
-    if(contentEl) contentEl.classList.add('active');
-
-    if (tab === 'stock') {
-        displayStockTable();
-    } else if (tab === 'history') {
-        displayPharmacyHistory();
-    } else {
-        displayPrescriptions();
-    }
-}
-
 
 // --- Prescription Handling ---
 function getPrescriptions() { return JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]'); }
@@ -48,11 +47,11 @@ function savePrescriptions(prescriptions) { localStorage.setItem('pendingPrescri
 
 function displayPrescriptions() {
     const container = document.getElementById('prescriptionsList');
-    const prescriptions = getPrescriptions();
+    const prescriptions = getPrescriptions().filter(p => p.status !== 'completed' && p.status !== 'cancelled');
     const queue = getQueue();
 
     if (prescriptions.length === 0) {
-        container.innerHTML = `<div class="empty-state"><p>Belum ada resep yang masuk.</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>Belum ada resep aktif yang masuk.</p></div>`;
         return;
     }
     
@@ -61,15 +60,35 @@ function displayPrescriptions() {
         const patientStatus = patientInQueue ? patientInQueue.status : 'N/A';
         
         let actionButton = '';
+        let statusText = getPrescriptionStatusText(p.status);
+
         if (p.status === 'pending') {
             actionButton = `<button class="btn-action btn-select" onclick="viewPrescription('${p.id}')"><i class="fas fa-cogs"></i> Proses Resep</button>`;
         } else if (p.status === 'processed' && patientStatus === 'Menunggu Pengambilan Obat') {
             actionButton = `<button class="btn-action btn-complete" onclick="handOverMedicine('${p.id}')"><i class="fas fa-check-double"></i> Serahkan Obat</button>`;
+            statusText = 'Siap Diambil';
         } else if (p.status === 'processed') {
-            actionButton = `<p class="info-text">Menunggu pembayaran...</p>`;
+            actionButton = `<p class="info-text">Menunggu pembayaran di kasir...</p>`;
+            statusText = 'Menunggu Pembayaran';
+        } else if (p.status === 'pending_doctor_review') {
+            actionButton = `<p class="info-text text-danger">Menunggu tinjauan dokter...</p>`;
         }
 
-        return `<div class="prescription-card status-${p.status}">...</div>`; // Simplified for brevity
+        return `
+            <div class="prescription-card status-${p.status}">
+                <div class="card-header">
+                    <h4>Resep untuk: ${p.patientName}</h4>
+                    <span class="status-badge status-${p.status}">${statusText}</span>
+                </div>
+                <div class="card-body">
+                    <p><strong>Tanggal:</strong> ${new Date(p.date).toLocaleDateString('id-ID')}</p>
+                    <p><strong>Catatan Dokter:</strong> ${p.notes || '-'}</p>
+                </div>
+                <div class="card-footer">
+                    ${actionButton}
+                </div>
+            </div>
+        `;
     }).join('');
 }
 
