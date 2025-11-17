@@ -57,6 +57,16 @@
                 </div>
             </div>
 
+            <!-- Problematic Prescriptions Section (for Doctor) -->
+            <div id="problematicPrescriptionsSection" class="queue-section" style="display: none;">
+                <div class="section-header" style="background-color: var(--color-danger-light);">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Resep Perlu Tinjauan</h2>
+                </div>
+                <div id="problematicPrescriptionsList" class="prescriptions-list">
+                    <!-- Problematic prescriptions will be rendered here by examination.js -->
+                </div>
+            </div>
+
             <!-- Examination Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchExaminationTab('vitals')">
@@ -232,11 +242,9 @@
             
             // Hide tabs based on role
             if (role === 'perawat') {
-                // Perawat can only access vitals tab
+                // Perawat can access vitals and history, but not consultation
                 document.getElementById('consultationTab').style.display = 'none';
-                document.getElementById('historyTab').style.display = 'none';
                 document.querySelectorAll('.tab-btn')[1].style.display = 'none';
-                document.querySelectorAll('.tab-btn')[2].style.display = 'none';
             } else if (role === 'dokter') {
                 // Dokter can access consultation and history
                 document.getElementById('vitalsTab').style.display = 'none';

@@ -44,7 +44,6 @@
                 <p>Daftarkan pasien baru atau cari data pasien lama</p>
             </div>
 
-            <!-- Tabs for New Patient / Existing Patient -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('new')">
                     <i class="fas fa-user-plus"></i>
@@ -53,6 +52,10 @@
                 <button class="tab-btn" onclick="switchTab('existing')">
                     <i class="fas fa-search"></i>
                     Pasien Lama
+                </button>
+                <button class="tab-btn admin-only" onclick="switchTab('user-management')" style="display: none;">
+                    <i class="fas fa-users-cog"></i>
+                    Manajemen Pengguna
                 </button>
             </div>
 
@@ -120,6 +123,52 @@
                 </div>
             </div>
 
+            <!-- User Management Tab (Admin Only) -->
+            <div id="userManagementTab" class="tab-content admin-only" style="display: none;">
+                <div class="form-container">
+                    <form id="createUserForm" class="patient-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user-plus"></i> Buat Akun Staff Baru</h3>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="newUsername">Username <span class="required">*</span></label>
+                                    <input type="text" id="newUsername" required placeholder="Username unik">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newEmail">Email <span class="required">*</span></label>
+                                    <input type="email" id="newEmail" required placeholder="Email valid">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Password <span class="required">*</span></label>
+                                    <input type="password" id="newPassword" required placeholder="Password minimal 6 karakter">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newRole">Role <span class="required">*</span></label>
+                                    <select id="newRole" required>
+                                        <option value="">-- Pilih Role --</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="dokter">Dokter</option>
+                                        <option value="perawat">Perawat</option>
+                                        <option value="apotek">Apotek</option>
+                                        <option value="pemilik">Pemilik</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit"><i class="fas fa-plus-circle"></i> Buat Akun</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="user-list-section">
+                    <h3><i class="fas fa-users"></i> Daftar Pengguna Terdaftar</h3>
+                    <div id="userList" class="user-list">
+                        <!-- User list will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
             <!-- Patient Queue List -->
             <div class="queue-section">
                 <div class="section-header">
@@ -153,6 +202,24 @@
             }
         });
     </script>
+
+    <!-- Patient Detail Modal (for Admin) -->
+    <div id="patientDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalPatientName">Detail Pasien</h3>
+                <button class="modal-close" onclick="closePatientDetailModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="patientDetailBody">
+                <!-- Details will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closePatientDetailModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

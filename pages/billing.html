@@ -45,12 +45,9 @@
             <!-- Patient Selection -->
             <div class="form-container">
                 <div class="form-section">
-                    <h3><i class="fas fa-user"></i> Pilih Pasien</h3>
-                    <div class="form-group">
-                        <label for="billingPatientSelect">Pilih Pasien yang Sudah Selesai Diperiksa</label>
-                        <select id="billingPatientSelect" name="billingPatientSelect" required onchange="loadBillingData(this.value)">
-                            <option value="">-- Pilih Pasien --</option>
-                        </select>
+                    <h3><i class="fas fa-user-clock"></i> Pasien Menunggu Pembayaran</h3>
+                    <div id="patientsForBillingList" class="patient-billing-list">
+                        <!-- Patient cards will be rendered here by billing.js -->
                     </div>
                 </div>
             </div>
@@ -69,9 +66,22 @@
                             <span>Biaya Obat</span>
                             <span id="biayaObat">Rp 0</span>
                         </div>
+                        <hr>
+                        <div class="summary-row">
+                            <span><strong>Subtotal</strong></span>
+                            <span id="subTotal"><strong>Rp 0</strong></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Status Pasien</span>
+                            <span id="patientStatus" class="status-badge"></span>
+                        </div>
+                        <div class="summary-row discount">
+                            <span>Diskon / Penyesuaian</span>
+                            <span id="discount">Rp 0</span>
+                        </div>
                         <div class="summary-row total">
-                            <span><strong>Total Pembayaran</strong></span>
-                            <span id="totalBayar"><strong>Rp 0</strong></span>
+                            <span><strong>Total Akhir</strong></span>
+                            <span id="finalTotal"><strong>Rp 0</strong></span>
                         </div>
                     </div>
 
