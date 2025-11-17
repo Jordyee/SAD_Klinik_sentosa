@@ -184,15 +184,31 @@
                                 <p class="field-hint">Jika dicentang, resep akan dikirim ke modul Apotek setelah dokter menyimpan hasil pemeriksaan.</p>
                             </div>
                             <div id="prescriptionForm" style="display: none;">
-                                <div class="form-group">
+                                <div class="form-grid-2-col">
+                                    <div class="form-group">
+                                        <label for="prescriptionMedicineSelect">Pilih Obat</label>
+                                        <select id="prescriptionMedicineSelect">
+                                            <option value="">-- Pilih Obat --</option>
+                                            <!-- Options will be populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="prescriptionQuantity">Jumlah</label>
+                                        <input type="number" id="prescriptionQuantity" value="1" min="1">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-secondary" onclick="addMedicineToPrescription()">
+                                    <i class="fas fa-plus"></i> Tambah Obat ke Resep
+                                </button>
+                                
+                                <div id="prescriptionItemsList" class="prescription-items-list">
+                                    <!-- Items added to the prescription will be shown here -->
+                                </div>
+
+                                <div class="form-group" style="margin-top: 1rem;">
                                     <label for="prescription_notes">Catatan Resep (untuk apotek)</label>
                                     <textarea id="prescription_notes" name="prescription_notes" rows="3" placeholder="Contoh: Paracetamol 500mg 3x1, Amoxicillin 500mg 3x1, dsb."></textarea>
                                 </div>
-                                <p class="info-text">
-                                    Resep <strong>tidak</strong> diambil langsung oleh dokter. Setelah tombol
-                                    <strong>Simpan Hasil Pemeriksaan</strong> ditekan, resep akan otomatis muncul di
-                                    modul Apotek dan dapat diproses oleh petugas apotek.
-                                </p>
                             </div>
                         </div>
 
