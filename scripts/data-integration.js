@@ -53,8 +53,16 @@ function getPatientName(patientId) {
 }
 
 // --- Prescription Management ---
+function getPrescriptions() {
+    return JSON.parse(localStorage.getItem(PRESCRIPTIONS_KEY) || '[]');
+}
+
+function savePrescriptions(prescriptions) {
+    localStorage.setItem(PRESCRIPTIONS_KEY, JSON.stringify(prescriptions));
+}
+
 function syncPrescriptionToPharmacy(patientId, prescriptionData) {
-    const prescriptions = JSON.parse(localStorage.getItem(PRESCRIPTIONS_KEY) || '[]');
+    let prescriptions = getPrescriptions();
     
     const prescription = {
         id: 'PR' + Date.now(),
@@ -62,12 +70,13 @@ function syncPrescriptionToPharmacy(patientId, prescriptionData) {
         patientName: getPatientName(patientId),
         date: new Date().toISOString(),
         notes: prescriptionData.notes || '',
-        status: 'pending', // 'pending', 'processed', 'cancelled'
+        status: 'pending', // 'pending', 'processed', 'pending_doctor_review', 'completed', 'cancelled'
+        paymentStatus: 'unpaid', // 'unpaid', 'paid'
         items: prescriptionData.items || []
     };
     
     prescriptions.push(prescription);
-    localStorage.setItem(PRESCRIPTIONS_KEY, JSON.stringify(prescriptions));
+    savePrescriptions(prescriptions);
     
     // Update patient status in the main queue
     updateQueueStatus(patientId, 'Menunggu Resep');

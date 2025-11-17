@@ -249,7 +249,7 @@ function updateUIForRole() {
 // Hide elements not accessible by current role
 function hideUnauthorizedElements(role) {
     const rolePermissions = {
-        'pasien': { show: ['register', 'billing'], hide: ['examination', 'pharmacy', 'reports'] },
+        'pasien': { show: ['register'], hide: ['examination', 'pharmacy', 'reports'] },
         'admin': { show: ['register', 'billing', 'reports'], hide: ['examination', 'pharmacy'] },
         'dokter': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
         'perawat': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
@@ -260,16 +260,23 @@ function hideUnauthorizedElements(role) {
     const permissions = rolePermissions[role];
     if (!permissions) return;
     
+    // Hide nav links
     permissions.hide.forEach(page => {
         const links = document.querySelectorAll(`a[href*="${page}"]`);
         links.forEach(link => {
-            if (link.parentElement.tagName === 'LI') {
-                link.parentElement.style.display = 'none';
-            } else {
+            if (link.parentElement.tagName === 'LI' || link.parentElement.classList.contains('nav-left')) {
                 link.style.display = 'none';
             }
         });
     });
+
+    // Special rule for pharmacist: hide payment button in header
+    if (role === 'apotek') {
+        const paymentButton = document.querySelector("button.btn-primary[onclick*='billing.html']");
+        if (paymentButton) {
+            paymentButton.style.display = 'none';
+        }
+    }
 }
 
 // Setup user icon with dropdown menu

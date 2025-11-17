@@ -100,11 +100,17 @@ function viewPrescription(prescriptionId) {
     const modalBody = document.getElementById('prescriptionModalBody');
     const footer = modal.querySelector('.modal-footer');
 
+    // Store the id on the modal for other functions to use
+    modal.dataset.prescriptionId = prescriptionId;
+
     const medicines = getMedicines();
     let allItemsAvailable = true;
     let unavailableItems = [];
 
-    const itemsHtml = (prescription.items || []).map(item => {
+    // Ensure prescription.items is an array
+    const items = Array.isArray(prescription.items) ? prescription.items : [];
+
+    const itemsHtml = items.map(item => {
         const med = medicines.find(m => m.id === item.medicineId);
         const isAvailable = med && med.stok >= item.quantity;
         if (!isAvailable) {
@@ -117,29 +123,35 @@ function viewPrescription(prescriptionId) {
     modalBody.innerHTML = `
         <p><strong>Pasien:</strong> ${prescription.patientName}</p>
         <p><strong>Catatan Dokter:</strong> ${prescription.notes || '-'}</p>
-        <table class="detail-table"><thead><tr><th>Obat</th><th>Jumlah</th><th>Ketersediaan</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+        <table class="detail-table">
+            <thead><tr><th>Obat</th><th>Jumlah</th><th>Ketersediaan</th></tr></thead>
+            <tbody>${items.length > 0 ? itemsHtml : '<tr><td colspan="3">Tidak ada item obat dalam resep ini.</td></tr>'}</tbody>
+        </table>
     `;
     
     if (allItemsAvailable) {
-        footer.innerHTML = `<button class="btn-cancel" onclick="closePrescriptionModal()">Batal</button><button class="btn-submit" onclick="processPrescription('${prescription.id}')">Proses & Siapkan Obat</button>`;
+        footer.innerHTML = `<button class="btn-cancel" onclick="closePrescriptionModal()">Batal</button><button class="btn-submit" onclick="processPrescription()">Proses & Siapkan Obat</button>`;
     } else {
         footer.innerHTML = `
             <p class="text-error">Stok obat tidak mencukupi. Harap informasikan ke dokter.</p>
             <button class="btn-cancel" onclick="closePrescriptionModal()">Tutup</button>
-            <button class="btn-danger" onclick="reportOutOfStock('${prescription.id}', '${unavailableItems.join(', ')}')">Laporkan Stok Kurang</button>
+            <button class="btn-danger" onclick="reportOutOfStock()">Laporkan Stok Kurang</button>
         `;
     }
 
     modal.style.display = 'block';
 }
 
-function reportOutOfStock(prescriptionId, unavailableItems) {
+function reportOutOfStock() {
+    const modal = document.getElementById('prescriptionModal');
+    const prescriptionId = modal.dataset.prescriptionId;
     let prescriptions = getPrescriptions();
     const idx = prescriptions.findIndex(p => p.id === prescriptionId);
     if (idx === -1) return;
 
+    // This part is simplified, in a real app you'd get the specific unavailable items
     prescriptions[idx].status = 'pending_doctor_review';
-    prescriptions[idx].notes = `[Stok Kurang: ${unavailableItems}] ${prescriptions[idx].notes}`;
+    prescriptions[idx].notes = `[Stok Kurang] ${prescriptions[idx].notes}`;
     savePrescriptions(prescriptions);
 
     Swal.fire('Terkirim', 'Laporan stok kurang telah dikirim ke dokter untuk ditinjau.', 'success');
@@ -147,19 +159,30 @@ function reportOutOfStock(prescriptionId, unavailableItems) {
     displayPrescriptions();
 }
 
-function processPrescription(prescriptionId) {
+function processPrescription() {
+    const modal = document.getElementById('prescriptionModal');
+    const prescriptionId = modal.dataset.prescriptionId;
     let prescriptions = getPrescriptions();
     const idx = prescriptions.findIndex(p => p.id === prescriptionId);
     if (idx === -1) return;
     
     // Deduct stock
     const medicines = getMedicines();
+    let stockSufficient = true;
     prescriptions[idx].items.forEach(item => {
         const medIdx = medicines.findIndex(m => m.id === item.medicineId);
-        if (medIdx > -1) {
+        if (medIdx > -1 && medicines[medIdx].stok >= item.quantity) {
             medicines[medIdx].stok -= item.quantity;
+        } else {
+            stockSufficient = false;
         }
     });
+
+    if (!stockSufficient) {
+        Swal.fire('Gagal', 'Stok berubah dan tidak lagi mencukupi. Harap laporkan ke dokter.', 'error');
+        return;
+    }
+
     saveMedicines(medicines);
 
     prescriptions[idx].status = 'processed';
@@ -176,16 +199,19 @@ function handOverMedicine(prescriptionId) {
     const idx = prescriptions.findIndex(p => p.id === prescriptionId);
     if (idx === -1) return;
 
-    const completedPrescription = prescriptions[idx];
+    const completedPrescription = { ...prescriptions[idx] };
 
-    // Update status
-    updateQueueStatus(completedPrescription.patientId, 'Selesai');
-    completedPrescription.status = 'completed';
+    // Update patient's main queue status to Selesai ONLY if they have no other active prescriptions
+    const otherActivePrescriptions = prescriptions.filter(p => p.patientId === completedPrescription.patientId && p.id !== prescriptionId && p.status !== 'completed');
+    if (otherActivePrescriptions.length === 0) {
+        updateQueueStatus(completedPrescription.patientId, 'Selesai');
+    }
     
-    // Move to history
+    // Move the completed prescription to history
     const history = JSON.parse(localStorage.getItem('pharmacyHistory') || '[]');
     history.push({
         ...completedPrescription,
+        status: 'completed',
         completedAt: new Date().toISOString()
     });
     localStorage.setItem('pharmacyHistory', JSON.stringify(history));
@@ -198,9 +224,27 @@ function handOverMedicine(prescriptionId) {
     displayPrescriptions();
 }
 
-function closePrescriptionModal() { /* ... */ }
-function refreshPrescriptions() { displayPrescriptions(); }
-function getPrescriptionStatusText(status) { /* ... */ }
+function closePrescriptionModal() {
+    const modal = document.getElementById('prescriptionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function refreshPrescriptions() { 
+    displayPrescriptions(); 
+}
+
+function getPrescriptionStatusText(status) {
+    const statusMap = {
+        'pending': 'Menunggu Diproses',
+        'processed': 'Diproses',
+        'pending_doctor_review': 'Menunggu Tinjauan Dokter',
+        'completed': 'Selesai',
+        'cancelled': 'Dibatalkan'
+    };
+    return statusMap[status] || status;
+}
 
 // --- History ---
 function displayPharmacyHistory() {
