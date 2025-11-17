@@ -29,13 +29,26 @@ function updateQueueStatus(patientId, newStatus) {
 }
 
 // --- Patient Data Management ---
-function getPatientData(patientId) {
-    const patients = JSON.parse(localStorage.getItem(PATIENT_DATA_KEY)) || [];
+function getAllPatientData() {
+    return JSON.parse(localStorage.getItem(PATIENT_DATA_KEY)) || [];
+}
+
+function saveAllPatientData(data) {
+    localStorage.setItem(PATIENT_DATA_KEY, JSON.stringify(data));
+}
+
+function findPatientById(patientId) {
+    const patients = getAllPatientData();
     return patients.find(p => p.patientId === patientId);
 }
 
+function findPatientByUsername(username) {
+    const patients = getAllPatientData();
+    return patients.find(p => p.linkedUsername === username);
+}
+
 function getPatientName(patientId) {
-    const patient = getPatientData(patientId);
+    const patient = findPatientById(patientId);
     return patient ? patient.nama : 'Unknown Patient';
 }
 

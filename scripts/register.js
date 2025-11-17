@@ -47,6 +47,22 @@ function setupFormListeners() {
 
     const createUserForm = document.getElementById('createUserForm');
     if (createUserForm) createUserForm.addEventListener('submit', handleCreateUserSubmit);
+
+    // New, robust tab switching logic
+    const tabs = document.querySelectorAll('.tabs .tab-btn');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            
+            // Deactivate all tabs and content
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            // Activate the selected tab and content
+            tab.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        });
+    });
 }
 
 function handleNewPatientSubmit(e) {
@@ -55,11 +71,11 @@ function handleNewPatientSubmit(e) {
     let linkedUsername = (user && user.role === 'pasien') ? user.username : null;
 
     if (linkedUsername && findPatientByUsername(linkedUsername)) {
-        alert('Anda sudah mendaftarkan data pasien.');
+        Swal.fire('Info', 'Anda sudah mendaftarkan data pasien.', 'info');
         return;
     }
 
-    let allPatientData = getPatientData();
+    let allPatientData = getAllPatientData();
     const newPatientRecord = {
         linkedUsername: linkedUsername,
         patientId: 'P' + String(allPatientData.length + 1).padStart(3, '0'),
@@ -70,9 +86,14 @@ function handleNewPatientSubmit(e) {
     };
 
     allPatientData.push(newPatientRecord);
-    savePatientData(allPatientData);
+    saveAllPatientData(allPatientData);
     const queueItem = addToQueue(newPatientRecord);
-    alert(`Pendaftaran berhasil! ID Pasien: ${newPatientRecord.patientId}. Antrian: #${queueItem.queueNumber}.`);
+
+    Swal.fire({
+        title: 'Pendaftaran Berhasil!',
+        html: `ID Pasien: <strong>${newPatientRecord.patientId}</strong><br>Nomor Antrian: <strong>#${queueItem.queueNumber}</strong>`,
+        icon: 'success'
+    });
     
     if(linkedUsername) handlePatientRoleView();
     else resetForm('newPatientForm');
@@ -89,29 +110,19 @@ function handleCreateUserSubmit(e) {
     const role = form.querySelector('#newRole').value;
 
     if(!username || !email || !password || !role) {
-        alert('Semua field wajib diisi.');
+        Swal.fire('Peringatan', 'Semua field wajib diisi.', 'warning');
         return;
     }
 
     const result = createUser(username, email, password, role);
-    alert(result.message);
-
+    
     if (result.success) {
+        Swal.fire('Berhasil', result.message, 'success');
         form.reset();
         displayUserList();
+    } else {
+        Swal.fire('Gagal', result.message, 'error');
     }
-}
-
-// --- Tab Switching ---
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    const tabButton = document.querySelector(`.tab-btn[onclick*="'${tab}'"]`);
-    const tabContent = document.getElementById(`${tab}Tab`) || document.getElementById(`${tab.replace('-', '')}Tab`);
-
-    if (tabButton) tabButton.classList.add('active');
-    if (tabContent) tabContent.classList.add('active');
 }
 
 // --- User Management (Admin) ---
@@ -120,15 +131,23 @@ function displayUserList() {
     if (!userListContainer) return;
 
     const users = getUsers();
+    const currentUser = getCurrentUser();
+
     userListContainer.innerHTML = `
         <table class="stock-table">
-            <thead><tr><th>Username</th><th>Email</th><th>Role</th></tr></thead>
+            <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Aksi</th></tr></thead>
             <tbody>
                 ${users.map(user => `
                     <tr>
                         <td>${user.username}</td>
                         <td>${user.email}</td>
                         <td>${user.role}</td>
+                        <td>
+                            ${user.username !== currentUser.username ? `
+                            <button class="btn-action btn-danger" onclick="deleteUser('${user.username}')">
+                                <i class="fas fa-trash"></i> Hapus
+                            </button>` : 'Tidak ada aksi'}
+                        </td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -136,11 +155,34 @@ function displayUserList() {
     `;
 }
 
+function deleteUser(username) {
+    Swal.fire({
+        title: `Yakin ingin menghapus pengguna ${username}?`,
+        text: "Aksi ini tidak dapat dibatalkan!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const removeResult = removeUser(username);
+            if (removeResult.success) {
+                Swal.fire('Dihapus!', removeResult.message, 'success');
+                displayUserList();
+            } else {
+                Swal.fire('Gagal', removeResult.message, 'error');
+            }
+        }
+    });
+}
+
 
 // --- Patient Search (for Pasien Lama tab) ---
 function searchPatient(query) {
     const resultsContainer = document.getElementById('searchResults');
-    const allPatientData = getPatientData();
+    const allPatientData = getAllPatientData();
     if (!query) {
         resultsContainer.innerHTML = `<div class="empty-state"><p>Masukkan kata kunci untuk mencari pasien.</p></div>`;
         return;
@@ -160,10 +202,12 @@ function searchPatient(query) {
 
 // --- Queue Management ---
 function selectPatient(patientId) {
-    const patient = getPatientData(patientId);
+    const patient = findPatientById(patientId);
     if (patient) {
-        addToQueue(patient);
-        alert(`Pasien ${patient.nama} telah ditambahkan ke antrian.`);
+        const queueItem = addToQueue(patient);
+        if (queueItem) { // Only show success if they were actually added
+            Swal.fire('Berhasil', `Pasien ${patient.nama} telah ditambahkan ke antrian dengan nomor #${queueItem.queueNumber}.`, 'success');
+        }
         displayQueue();
     }
 }
@@ -171,8 +215,8 @@ function selectPatient(patientId) {
 function addToQueue(patient) {
     const queue = getQueue();
     if (queue.some(item => item.patient.patientId === patient.patientId && item.status !== 'Selesai')) {
-        alert('Pasien sudah ada di dalam antrian aktif.');
-        return queue.find(item => item.patient.patientId === patient.patientId);
+        Swal.fire('Info', 'Pasien sudah ada di dalam antrian aktif.', 'info');
+        return null; // Return null to indicate patient was not added
     }
     const queueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queueNumber)) + 1 : 1;
     const queueItem = {
@@ -233,7 +277,7 @@ function showPatientDetails(patientId) {
     const body = document.getElementById('patientDetailBody');
     const nameEl = document.getElementById('modalPatientName');
 
-    const patientData = getPatientData(patientId);
+    const patientData = findPatientById(patientId);
     const queueItem = getQueue().find(item => item.patient.patientId === patientId);
 
     if (!patientData || !modal || !body || !nameEl) {

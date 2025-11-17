@@ -29,6 +29,7 @@ function saveUsers(users) {
 function authenticateUser(username, password, role) {
     const users = getUsers();
     const user = users.find(u => u.username === username && u.password === password && u.role === role);
+    
     if (user) {
         // On successful login, create a session
         const userSession = {
@@ -39,17 +40,8 @@ function authenticateUser(username, password, role) {
         localStorage.setItem('userSession', JSON.stringify(userSession));
         return user;
     }
-    // Fallback for multi-role accounts (like admin logging in as patient)
-    const anyRoleUser = users.find(u => u.username === username && u.password === password);
-    if (anyRoleUser) {
-        const userSession = {
-            username: anyRoleUser.username,
-            role: anyRoleUser.role,
-            loginTime: new Date().toISOString()
-        };
-        localStorage.setItem('userSession', JSON.stringify(userSession));
-        return anyRoleUser;
-    }
+    
+    // If no exact match is found, return null.
     return null;
 }
 
@@ -89,6 +81,25 @@ function createUser(username, email, password, role) {
     users.push(newUser);
     saveUsers(users);
     return { success: true, message: `Akun untuk role ${role} berhasil dibuat.` };
+}
+
+// Remove a user (for Admins)
+function removeUser(username) {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.username === username) {
+        return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri.' };
+    }
+
+    let users = getUsers();
+    const initialLength = users.length;
+    users = users.filter(user => user.username !== username);
+
+    if (users.length === initialLength) {
+        return { success: false, message: 'Pengguna tidak ditemukan.' };
+    }
+
+    saveUsers(users);
+    return { success: true, message: `Pengguna ${username} berhasil dihapus.` };
 }
 
 
@@ -136,8 +147,15 @@ function requireRole(allowedRoles) {
     }
     
     if (!allowedRoles.includes(currentRole)) {
-        alert(`Akses ditolak! Role ${currentRole} tidak memiliki akses ke halaman ini.`);
-        redirectBasedOnRole(currentRole);
+        Swal.fire({
+            title: 'Akses Ditolak!',
+            text: `Role ${currentRole} tidak memiliki akses ke halaman ini.`,
+            icon: 'error',
+            timer: 3000,
+            timerProgressBar: true
+        }).then(() => {
+            redirectBasedOnRole(currentRole);
+        });
         return false;
     }
     
@@ -284,9 +302,20 @@ function setupUserIcon() {
     // Logout button
     document.getElementById('logoutButton').addEventListener('click', (e) => {
         e.preventDefault();
-        if (confirm('Apakah Anda yakin ingin keluar?')) {
-            logout();
-        }
+        Swal.fire({
+            title: 'Anda yakin ingin keluar?',
+            text: "Anda akan dikembalikan ke halaman login.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, keluar!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                logout();
+            }
+        });
     });
 
     // Hide dropdown when clicking outside

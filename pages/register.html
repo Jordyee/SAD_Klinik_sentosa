@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <!-- Header Navigation -->
@@ -45,22 +46,22 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('new')">
+                <button class="tab-btn active" data-tab="new">
                     <i class="fas fa-user-plus"></i>
                     Pasien Baru
                 </button>
-                <button class="tab-btn" onclick="switchTab('existing')">
+                <button class="tab-btn" data-tab="existing">
                     <i class="fas fa-search"></i>
                     Pasien Lama
                 </button>
-                <button class="tab-btn admin-only" onclick="switchTab('user-management')" style="display: none;">
+                <button class="tab-btn admin-only" data-tab="user-management" style="display: none;">
                     <i class="fas fa-users-cog"></i>
                     Manajemen Pengguna
                 </button>
             </div>
 
             <!-- New Patient Form -->
-            <div id="newPatientTab" class="tab-content active">
+            <div id="new-tab" class="tab-content active">
                 <div class="form-container">
                     <div id="registrationInfo" class="registration-info">
                         <!-- Pesan informasi setelah pendaftaran akan muncul di sini -->
@@ -107,7 +108,7 @@
             </div>
 
             <!-- Existing Patient Search -->
-            <div id="existingPatientTab" class="tab-content">
+            <div id="existing-tab" class="tab-content">
                 <div class="search-container">
                     <div class="search-box-large">
                         <i class="fas fa-search"></i>
@@ -124,7 +125,7 @@
             </div>
 
             <!-- User Management Tab (Admin Only) -->
-            <div id="userManagementTab" class="tab-content admin-only" style="display: none;">
+            <div id="user-management-tab" class="tab-content admin-only" style="display: none;">
                 <div class="form-container">
                     <form id="createUserForm" class="patient-form">
                         <div class="form-section">

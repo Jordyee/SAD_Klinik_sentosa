@@ -123,7 +123,7 @@ function reportOutOfStock(prescriptionId, unavailableItems) {
     prescriptions[idx].notes = `[Stok Kurang: ${unavailableItems}] ${prescriptions[idx].notes}`;
     savePrescriptions(prescriptions);
 
-    alert('Laporan stok kurang telah dikirim ke dokter untuk ditinjau.');
+    Swal.fire('Terkirim', 'Laporan stok kurang telah dikirim ke dokter untuk ditinjau.', 'success');
     closePrescriptionModal();
     displayPrescriptions();
 }
@@ -147,7 +147,7 @@ function processPrescription(prescriptionId) {
     savePrescriptions(prescriptions);
     updateQueueStatus(prescriptions[idx].patientId, 'Menunggu Pembayaran');
     
-    alert('Resep diproses. Pasien diarahkan ke kasir.');
+    Swal.fire('Berhasil', 'Resep diproses. Pasien diarahkan ke kasir.', 'success');
     closePrescriptionModal();
     displayPrescriptions();
 }
@@ -175,7 +175,7 @@ function handOverMedicine(prescriptionId) {
     prescriptions.splice(idx, 1);
     savePrescriptions(prescriptions);
 
-    alert('Obat diserahkan. Proses selesai.');
+    Swal.fire('Selesai', 'Obat telah diserahkan kepada pasien.', 'success');
     displayPrescriptions();
 }
 

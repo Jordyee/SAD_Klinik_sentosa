@@ -59,9 +59,9 @@ function loadBillingDetails(patientId) {
     const selectedCard = document.querySelector(`.patient-billing-card[onclick*="'${patientId}'"]`);
     if (selectedCard) selectedCard.classList.add('active');
 
-    const patient = getPatientData(patientId);
+    const patient = findPatientById(patientId);
     if (!patient) {
-        alert('Data pasien tidak ditemukan.');
+        Swal.fire('Error', 'Data pasien tidak ditemukan.', 'error');
         return;
     }
 
@@ -129,7 +129,7 @@ function processPayment() {
     const patientId = billingDetails.dataset.patientId;
     
     if (!patientId) {
-        alert('Pilih pasien dari daftar terlebih dahulu.');
+        Swal.fire('Peringatan', 'Pilih pasien dari daftar terlebih dahulu.', 'warning');
         return;
     }
     
@@ -150,7 +150,13 @@ function processPayment() {
     paymentHistory.push(payment);
     localStorage.setItem('paymentHistory', JSON.stringify(paymentHistory));
     
-    alert('Pembayaran berhasil! Pasien dapat mengambil obat.');
+    Swal.fire({
+        title: 'Pembayaran Berhasil!',
+        text: 'Pasien dapat melanjutkan untuk mengambil obat.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+    });
     
     resetBilling();
     loadBillingPageData(); // Refresh lists

@@ -55,26 +55,53 @@ function displayProblematicPrescriptions() {
 }
 
 function cancelPrescription(prescriptionId) {
-    let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx > -1) {
-        prescriptions[idx].status = 'cancelled';
-        localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-        alert('Resep telah dibatalkan.');
-        displayProblematicPrescriptions();
-    }
+    Swal.fire({
+        title: 'Anda yakin?',
+        text: "Resep ini akan dibatalkan secara permanen.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, batalkan!',
+        cancelButtonText: 'Tidak'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
+            const idx = prescriptions.findIndex(p => p.id === prescriptionId);
+            if (idx > -1) {
+                prescriptions[idx].status = 'cancelled';
+                localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
+                Swal.fire('Dibatalkan!', 'Resep telah dibatalkan.', 'success');
+                displayProblematicPrescriptions();
+            }
+        }
+    });
 }
 
-function editPrescription(prescriptionId) {
+async function editPrescription(prescriptionId) {
     let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
     const idx = prescriptions.findIndex(p => p.id === prescriptionId);
     if (idx > -1) {
-        const newNotes = prompt('Masukkan catatan atau resep baru untuk apotek:', prescriptions[idx].notes);
+        const { value: newNotes } = await Swal.fire({
+            title: 'Ubah Resep',
+            input: 'textarea',
+            inputLabel: 'Catatan atau resep baru untuk apotek',
+            inputValue: prescriptions[idx].notes,
+            showCancelButton: true,
+            confirmButtonText: 'Kirim Ulang',
+            cancelButtonText: 'Batal',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Anda harus memasukkan catatan!';
+                }
+            }
+        });
+
         if (newNotes) {
             prescriptions[idx].notes = `[DIUBAH DOKTER] ${newNotes}`;
             prescriptions[idx].status = 'pending'; // Resend to pharmacy
             localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-            alert('Resep telah diubah dan dikirim ulang ke apotek.');
+            Swal.fire('Terkirim!', 'Resep telah diubah dan dikirim ulang ke apotek.', 'success');
             displayProblematicPrescriptions();
         }
     }
@@ -173,7 +200,7 @@ function handleVitalsSubmit(e) {
     e.preventDefault();
     const patientId = document.getElementById('patientSelect').value;
     if (!patientId) {
-        alert('Pilih pasien terlebih dahulu.');
+        Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
     
@@ -191,7 +218,7 @@ function handleVitalsSubmit(e) {
     // Update status to 'Menunggu Dokter'
     updateQueueStatus(patientId, 'Menunggu Dokter');
     
-    alert('Data vital berhasil disimpan.');
+    Swal.fire('Berhasil', 'Data vital berhasil disimpan.', 'success');
     resetVitalsForm();
     refreshExaminationQueue();
 }
@@ -200,7 +227,7 @@ function handleConsultationSubmit(e) {
     e.preventDefault();
     const patientId = document.getElementById('consultationPatientSelect').value;
     if (!patientId) {
-        alert('Pilih pasien terlebih dahulu.');
+        Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
     
@@ -230,7 +257,7 @@ function handleConsultationSubmit(e) {
         updateQueueStatus(patientId, 'Menunggu Pembayaran');
     }
     
-    alert('Hasil pemeriksaan berhasil disimpan!');
+    Swal.fire('Berhasil', 'Hasil pemeriksaan berhasil disimpan!', 'success');
     resetConsultationForm();
     refreshExaminationQueue();
 }

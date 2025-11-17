@@ -45,7 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Redirect based on the role stored in the user's record
                 redirectBasedOnRole(user.role);
             } else {
-                alert('Username, password, atau role salah!');
+                Swal.fire({
+                    title: 'Login Gagal',
+                    text: 'Username, password, atau role yang Anda pilih salah!',
+                    icon: 'error'
+                });
             }
         });
     }
@@ -60,20 +64,34 @@ document.addEventListener('DOMContentLoaded', function() {
             const password = document.getElementById('newPassword').value;
 
             if (!username || !email || !password) {
-                alert('Semua field harus diisi!');
+                Swal.fire({
+                    title: 'Oops...',
+                    text: 'Semua field harus diisi!',
+                    icon: 'warning'
+                });
                 return;
             }
 
             const result = registerUser(username, email, password);
 
-            alert(result.message);
-
             if (result.success) {
-                // Show login form after successful registration
-                registerCard.style.display = 'none';
-                loginCard.style.display = 'block';
-                // Clear registration form
-                registerForm.reset();
+                Swal.fire({
+                    title: 'Registrasi Berhasil!',
+                    text: result.message,
+                    icon: 'success'
+                }).then(() => {
+                    // Show login form after successful registration
+                    registerCard.style.display = 'none';
+                    loginCard.style.display = 'block';
+                    // Clear registration form
+                    registerForm.reset();
+                });
+            } else {
+                Swal.fire({
+                    title: 'Registrasi Gagal',
+                    text: result.message,
+                    icon: 'error'
+                });
             }
         });
     }
