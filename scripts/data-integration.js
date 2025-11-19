@@ -52,6 +52,15 @@ function getPatientName(patientId) {
     return patient ? patient.nama : 'Unknown Patient';
 }
 
+// --- Medicine Management ---
+function getMedicines() {
+    return JSON.parse(localStorage.getItem(MEDICINES_KEY) || '[]');
+}
+
+function saveMedicines(medicines) {
+    localStorage.setItem(MEDICINES_KEY, JSON.stringify(medicines));
+}
+
 // --- Prescription Management ---
 function getPrescriptions() {
     return JSON.parse(localStorage.getItem(PRESCRIPTIONS_KEY) || '[]');

@@ -1,11 +1,5 @@
-// Billing Module JavaScript
-
-let paymentHistory = [];
-const BIAYA_PEMERIKSAAN_DEFAULT = 75000; // Default examination fee
-
-// --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
-    requireRole(['admin']); // Billing is an admin-only feature now
+    requireRole(['admin', 'pasien']); // Allow patients to see their bills
     loadBillingPageData();
 });
 
@@ -15,7 +9,7 @@ function loadBillingPageData() {
         paymentHistory = JSON.parse(savedPayments);
     }
     
-    displayPrescriptionsForBilling(); // Changed to display prescriptions
+    displayPrescriptionsForBilling();
     displayPaymentHistory();
 }
 
@@ -26,68 +20,89 @@ function displayPrescriptionsForBilling() {
     if (!container) return;
 
     const allPrescriptions = getPrescriptions();
-    console.log('BILLING: All prescriptions available:', allPrescriptions);
-
-    // Get prescriptions that are processed but unpaid
     const prescriptionsForBilling = allPrescriptions.filter(p => 
         p.status === 'processed' && p.paymentStatus === 'unpaid'
     );
-    console.log('BILLING: Prescriptions filtered for billing:', prescriptionsForBilling);
     
-    container.innerHTML = ''; // Clear previous list
+    container.innerHTML = '';
 
     if (prescriptionsForBilling.length === 0) {
         container.innerHTML = `<div class="empty-state"><p>Tidak ada resep yang menunggu pembayaran.</p></div>`;
         return;
     }
 
-    prescriptionsForBilling.forEach(p => {
-        const prescriptionCard = document.createElement('div');
-        prescriptionCard.className = 'patient-billing-card';
-        prescriptionCard.setAttribute('onclick', `loadBillingDetails('${p.id}')`); // Pass prescription ID
-        prescriptionCard.innerHTML = `
-            <div class="patient-name">${p.patientName}</div>
-            <div class="patient-id">Resep ID: ${p.id}</div>
-            <div class="patient-queue-number">Pasien ID: ${p.patientId}</div>
+    const patientsToBill = prescriptionsForBilling.reduce((acc, p) => {
+        if (!acc[p.patientId]) {
+            acc[p.patientId] = {
+                patientId: p.patientId,
+                patientName: p.patientName,
+                prescriptions: []
+            };
+        }
+        acc[p.patientId].prescriptions.push(p);
+        return acc;
+    }, {});
+
+    Object.values(patientsToBill).forEach(patient => {
+        const patientCard = document.createElement('div');
+        patientCard.className = 'patient-billing-card';
+        patientCard.dataset.patientId = patient.patientId; // Add data attribute for easy selection
+        patientCard.innerHTML = `
+            <div class="patient-name">${patient.patientName}</div>
+            <div class="patient-id">Pasien ID: ${patient.patientId}</div>
+            <div class="patient-queue-number">Resep: ${patient.prescriptions.length} item</div>
         `;
-        container.appendChild(prescriptionCard);
+        
+        // Use addEventListener for a more robust click handling
+        patientCard.addEventListener('click', () => {
+            loadBillingDetails(patient.patientId);
+        });
+
+        container.appendChild(patientCard);
     });
 }
 
-function loadBillingDetails(prescriptionId) {
+function loadBillingDetails(patientId) {
     const billingDetails = document.getElementById('billingDetails');
-    if (!prescriptionId) {
+    if (!patientId) {
         billingDetails.style.display = 'none';
         return;
     }
 
-    // Highlight selected prescription
+    // Highlight selected patient card using the data attribute
     document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
-    const selectedCard = document.querySelector(`.patient-billing-card[onclick*="'${prescriptionId}'"]`);
+    const selectedCard = document.querySelector(`.patient-billing-card[data-patient-id='${patientId}']`);
     if (selectedCard) selectedCard.classList.add('active');
 
-    const prescription = getPrescriptions().find(p => p.id === prescriptionId);
-    if (!prescription) {
-        Swal.fire('Error', 'Data resep tidak ditemukan.', 'error');
-        return;
-    }
-
-    const patient = findPatientById(prescription.patientId);
+    const patient = findPatientById(patientId);
     if (!patient) {
-        Swal.fire('Error', 'Data pasien untuk resep ini tidak ditemukan.', 'error');
+        Swal.fire('Error', 'Data pasien tidak ditemukan.', 'error');
         return;
     }
 
-    // --- Cost Calculation ---
-    const biayaPemeriksaan = BIAYA_PEMERIKSAAN_DEFAULT; // Assume examination fee is per consultation/prescription
+    // Get all unpaid prescriptions for this patient
+    const patientPrescriptions = getPrescriptions().filter(p => 
+        p.patientId === patientId && p.status === 'processed' && p.paymentStatus === 'unpaid'
+    );
+
+    if (patientPrescriptions.length === 0) {
+        Swal.fire('Info', 'Pasien ini tidak memiliki resep yang perlu dibayar.', 'info');
+        resetBilling();
+        return;
+    }
+
+    // --- Cost Calculation (Consolidated) ---
+    const biayaPemeriksaan = BIAYA_PEMERIKSAAN_DEFAULT; // Charge examination fee once per payment session
     let biayaObat = 0;
+    const medicines = getMedicines();
     
-    const medicines = getMedicines(); // Assuming getMedicines is available globally or imported
-    prescription.items.forEach(item => {
-        const medicine = medicines.find(m => m.id === item.medicineId);
-        if (medicine) {
-            biayaObat += medicine.harga * (item.quantity || 1);
-        }
+    patientPrescriptions.forEach(prescription => {
+        prescription.items.forEach(item => {
+            const medicine = medicines.find(m => m.id === item.medicineId);
+            if (medicine) {
+                biayaObat += medicine.harga * (item.quantity || 1);
+            }
+        });
     });
 
     const subTotal = biayaPemeriksaan + biayaObat;
@@ -122,9 +137,10 @@ function loadBillingDetails(prescriptionId) {
     document.getElementById('discount').textContent = `- Rp ${discount.toLocaleString('id-ID')}`;
     document.getElementById('finalTotal').innerHTML = `<strong>Rp ${finalTotal.toLocaleString('id-ID')}</strong>`;
     
-    // Store prescription ID and final total for payment processing
-    billingDetails.dataset.prescriptionId = prescriptionId;
-    billingDetails.dataset.patientId = patient.id; // Store patient ID for queue update logic
+    // Store patient ID, all relevant prescription IDs, and final total
+    const prescriptionIds = patientPrescriptions.map(p => p.id);
+    billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds); // Store as JSON string
+    billingDetails.dataset.patientId = patientId;
     billingDetails.dataset.finalTotal = finalTotal;
     
     billingDetails.style.display = 'block';
@@ -135,31 +151,39 @@ function loadBillingDetails(prescriptionId) {
 
 function processPayment() {
     const billingDetails = document.getElementById('billingDetails');
-    const prescriptionId = billingDetails.dataset.prescriptionId;
     const patientId = billingDetails.dataset.patientId;
+    const prescriptionIdsStr = billingDetails.dataset.prescriptionIds;
     
-    if (!prescriptionId) {
-        Swal.fire('Peringatan', 'Pilih resep dari daftar terlebih dahulu.', 'warning');
+    if (!patientId || !prescriptionIdsStr) {
+        Swal.fire('Peringatan', 'Pilih pasien dari daftar terlebih dahulu.', 'warning');
         return;
     }
     
-    let prescriptions = getPrescriptions();
-    const prescriptionIndex = prescriptions.findIndex(p => p.id === prescriptionId);
+    const prescriptionIds = JSON.parse(prescriptionIdsStr);
+    let allPrescriptions = getPrescriptions();
 
-    if (prescriptionIndex === -1) {
-        Swal.fire('Error', 'Resep tidak ditemukan.', 'error');
+    // Update payment status for all prescriptions in this transaction
+    let updatedCount = 0;
+    prescriptionIds.forEach(id => {
+        const index = allPrescriptions.findIndex(p => p.id === id);
+        if (index !== -1) {
+            allPrescriptions[index].paymentStatus = 'paid';
+            updatedCount++;
+        }
+    });
+
+    if (updatedCount === 0) {
+        Swal.fire('Error', 'Tidak ada resep yang ditemukan untuk diproses.', 'error');
         return;
     }
 
-    // Update prescription payment status
-    prescriptions[prescriptionIndex].paymentStatus = 'paid';
-    savePrescriptions(prescriptions);
+    savePrescriptions(allPrescriptions);
     
     const finalTotal = parseInt(billingDetails.dataset.finalTotal);
 
     const payment = {
         id: 'PAY' + Date.now(),
-        prescriptionId: prescriptionId,
+        prescriptionIds: prescriptionIds, // Store all paid prescription IDs
         patientId: patientId,
         patientName: getPatientName(patientId),
         date: new Date().toISOString(),
@@ -171,26 +195,14 @@ function processPayment() {
     paymentHistory.push(payment);
     localStorage.setItem('paymentHistory', JSON.stringify(paymentHistory));
     
-    // Check if all prescriptions for this patient are now paid or completed
-    const patientPrescriptions = getPrescriptions().filter(p => p.patientId === patientId);
-    const allPaidOrCompleted = patientPrescriptions.every(p => p.paymentStatus === 'paid' || p.status === 'completed');
-
-    if (allPaidOrCompleted) {
-        updateQueueStatus(patientId, 'Menunggu Pengambilan Obat');
-    } else {
-        // If not all paid, patient might have other unpaid prescriptions, so keep status as 'Menunggu Pembayaran'
-        // Or, if this is the first payment, update to 'Menunggu Pengambilan Obat'
-        const currentQueueStatus = getQueue().find(q => q.patient.patientId === patientId)?.status;
-        if (currentQueueStatus === 'Menunggu Pembayaran') {
-             updateQueueStatus(patientId, 'Menunggu Pengambilan Obat');
-        }
-    }
+    // Update queue status for the patient
+    updateQueueStatus(patientId, 'Menunggu Pengambilan Obat');
 
     Swal.fire({
         title: 'Pembayaran Berhasil!',
-        text: 'Pasien dapat melanjutkan untuk mengambil obat.',
+        text: `Pembayaran untuk ${updatedCount} resep telah berhasil. Pasien dapat melanjutkan untuk mengambil obat.`,
         icon: 'success',
-        timer: 2000,
+        timer: 2500,
         showConfirmButton: false
     }).then(() => {
         showReceipt(payment); // Show receipt after successful payment
@@ -234,6 +246,9 @@ function showReceipt(payment) {
     // Store payment data on modal for printing
     modal.dataset.payment = JSON.stringify(payment);
 
+    // Handle multiple prescription IDs
+    const prescriptionIdText = (payment.prescriptionIds || [payment.prescriptionId]).join(', ');
+
     receiptBody.innerHTML = `
         <div class="receipt-header">
             <h3>Klinik Sentosa</h3>
@@ -244,7 +259,7 @@ function showReceipt(payment) {
         <div class="receipt-details">
             <p><strong>Tanggal:</strong> ${new Date(payment.date).toLocaleString('id-ID')}</p>
             <p><strong>Pasien:</strong> ${payment.patientName} (ID: ${payment.patientId})</p>
-            <p><strong>Resep ID:</strong> ${payment.prescriptionId}</p>
+            <p><strong>ID Resep:</strong> ${prescriptionIdText}</p>
             <p><strong>Metode Pembayaran:</strong> ${payment.paymentMethod.toUpperCase()}</p>
             <hr>
             <p><strong>Total Pembayaran:</strong> <span class="total-amount">Rp ${payment.totalBayar.toLocaleString('id-ID')}</span></p>
@@ -294,5 +309,9 @@ function printReceipt() {
     printWindow.print();
     printWindow.close();
 }
+
+
+
+
 
 

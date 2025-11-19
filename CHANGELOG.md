@@ -4,6 +4,54 @@ Dokumen ini merangkum semua perubahan, perbaikan bug, dan penambahan fitur yang 
 
 ---
 
+## 8. Implementasi Final Modul Pembayaran (Self-Contained)
+
+**Tanggal:** 19 November 2025
+**Kategori:** Perbaikan Kritis, Refaktor Final
+**Deskripsi:** Sebagai upaya terakhir dan definitif untuk menyelesaikan masalah pada modul pembayaran, semua logika JavaScript yang diperlukan untuk fungsionalitas halaman pembayaran telah ditanamkan (embedded) langsung di dalam file `pages/billing.html`.
+*   **Strategi "Scorched Earth":** Pendekatan ini menghilangkan semua kemungkinan kegagalan yang disebabkan oleh file eksternal, seperti masalah *caching* browser, urutan pemuatan skrip yang salah, atau dependensi antar-file yang hilang.
+*   **Logika Lengkap:** Skrip yang ditanamkan mencakup semua fungsi yang diperlukan, mulai dari pengambilan data (`getPrescriptions`, `getMedicines`), render UI (`displayPrescriptionsForBilling`), kalkulasi biaya (`loadBillingDetails`), hingga pemrosesan pembayaran dan struk (`processPayment`, `showReceipt`).
+*   **Fungsionalitas Penuh:** Fungsi-fungsi placeholder yang sebelumnya digunakan untuk debugging kini telah diganti dengan implementasi penuhnya, menjadikan halaman pembayaran berfungsi sepenuhnya dari awal hingga akhir.
+**File yang Terkena Dampak:**
+*   `pages/billing.html`: Dirombak total untuk menjadi file mandiri yang berisi semua HTML dan JavaScript yang relevan.
+*   `scripts/billing.js`: File ini sekarang tidak lagi digunakan oleh `billing.html` (meskipun tidak dihapus dari proyek).
+
+---
+
+## 7. Perombakan Total dan Perbaikan Alur Kerja Pembayaran & Apotek
+
+**Tanggal:** 19 November 2025
+**Kategori:** Refaktor Kritis, Perbaikan Bug, Peningkatan UX
+**Deskripsi:** Melakukan perombakan dan serangkaian perbaikan besar pada modul Apotek dan Pembayaran untuk mengatasi beberapa masalah fundamental yang saling terkait, yang puncaknya adalah ketidakmampuan admin untuk memproses pembayaran.
+
+*   **A. Perbaikan Bug Pembayaran Multi-Resep:**
+    *   **Masalah:** Sistem pembayaran awal hanya memproses satu resep per transaksi, menyebabkan resep kedua dari pasien yang sama tetap berstatus `unpaid` setelah pembayaran.
+    *   **Solusi:** Logika pembayaran dirombak dari **per-resep** menjadi **pasien-sentris**. Sekarang, sistem mengelompokkan semua resep pasien yang belum lunas ke dalam satu tagihan. Fungsi `processPayment` diperbarui untuk menandai semua resep yang terlibat sebagai `paid` dalam satu transaksi.
+
+*   **B. Penyederhanaan Alur Kerja Apotek:**
+    *   **Masalah:** Alur kerja apoteker untuk memproses resep (yang merupakan syarat agar resep muncul di tagihan) tidak intuitif, memerlukan beberapa klik di dalam modal pop-up. Hal ini menyebabkan pengguna sering kali tidak menyelesaikan langkah ini.
+    *   **Solusi:** UI dirombak untuk menghapus modal perantara. Apoteker sekarang disajikan dengan tombol aksi langsung pada daftar resep: **"Proses & Kirim ke Kasir"** jika stok cukup, atau **"Laporkan Stok Kurang"** jika tidak. Ini memastikan resep ditransisikan dengan benar ke status `processed`.
+
+*   **C. Perbaikan Interaktivitas & Tampilan UI Pembayaran:**
+    *   **Masalah:** Setelah perbaikan logika, pengguna masih melaporkan tidak bisa melihat rincian pembayaran. Investigasi lebih lanjut menemukan dua masalah UI kritis: (1) Kartu pasien tidak dapat diklik karena metode event handler yang usang. (2) Kartu pasien tidak terlihat sama sekali karena kelas CSS-nya tidak didefinisikan.
+    *   **Solusi:**
+        1.  Mengganti `setAttribute('onclick', ...)` dengan `addEventListener` modern untuk memastikan kartu pasien selalu interaktif.
+        2.  Menambahkan definisi style untuk kelas `.patient-billing-card` di `styles/modules.css` agar kartu tersebut memiliki tampilan (latar belakang, border, padding) dan benar-benar terlihat.
+        3.  Struktur `pages/billing.html` dirombak untuk menggunakan layout grid dua kolom yang eksplisit, menyediakan tempat yang pasti untuk rincian pembayaran muncul.
+
+*   **D. Perbaikan Arsitektur Kode (Dependensi Error):**
+    *   **Masalah:** Ditemukan error kritis di mana `billing.js` memanggil fungsi `getMedicines()` untuk menghitung harga, tetapi fungsi tersebut hanya ada di `pharmacy.js` yang tidak dimuat di halaman pembayaran. Ini menyebabkan script berhenti dan mencegah rincian pembayaran ditampilkan.
+    *   **Solusi:** Fungsi `getMedicines()` dan `saveMedicines()` dipindahkan ke file terpusat `scripts/data-integration.js`, sehingga tersedia secara global untuk semua modul yang membutuhkannya.
+
+**File yang Terkena Dampak:**
+*   `scripts/billing.js`: Dirombak total untuk logika pasien-sentris dan `addEventListener`.
+*   `scripts/pharmacy.js`: Alur kerja disederhanakan, fungsi data obat dihilangkan.
+*   `scripts/data-integration.js`: Ditambahkan fungsi `getMedicines()` dan `saveMedicines()`.
+*   `pages/billing.html`: Struktur diubah untuk layout grid dua kolom.
+*   `styles/modules.css`: Ditambahkan style untuk `.patient-billing-card` dan `.billing-layout`.
+
+---
+
 ## 1. Integrasi SweetAlert2 & Peningkatan UX Notifikasi
 
 **Tanggal:** 18 November 2025

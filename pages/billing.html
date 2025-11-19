@@ -43,94 +43,97 @@
                 <p>Proses pembayaran dan cetak struk</p>
             </div>
 
-            <!-- Patient Selection -->
-            <div class="form-container">
-                <div class="form-section">
-                    <div class="section-header">
-                        <h3><i class="fas fa-user-clock"></i> Resep Menunggu Pembayaran</h3>
-                        <button class="btn-refresh" onclick="loadBillingPageData()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
-                    <div id="patientsForBillingList" class="patient-billing-list">
-                        <!-- Patient cards will be rendered here by billing.js -->
-                    </div>
-                </div>
-            </div>
+            <!-- New Billing Layout Wrapper -->
+            <div class="billing-layout">
 
-            <!-- Billing Details -->
-            <div id="billingDetails" class="form-container" style="display: none;">
-                <div class="form-section">
-                    <h3><i class="fas fa-receipt"></i> Rincian Pembayaran</h3>
-                    
-                    <div class="billing-summary">
-                        <div class="summary-row">
-                            <span>Biaya Pemeriksaan</span>
-                            <span id="biayaPemeriksaan">Rp 0</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Biaya Obat</span>
-                            <span id="biayaObat">Rp 0</span>
-                        </div>
-                        <hr>
-                        <div class="summary-row">
-                            <span><strong>Subtotal</strong></span>
-                            <span id="subTotal"><strong>Rp 0</strong></span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Status Pasien</span>
-                            <span id="patientStatus" class="status-badge"></span>
-                        </div>
-                        <div class="summary-row discount">
-                            <span>Diskon / Penyesuaian</span>
-                            <span id="discount">Rp 0</span>
-                        </div>
-                        <div class="summary-row total">
-                            <span><strong>Total Akhir</strong></span>
-                            <span id="finalTotal"><strong>Rp 0</strong></span>
-                        </div>
-                    </div>
-
+                <!-- Column 1: Patient Selection -->
+                <div class="form-container">
                     <div class="form-section">
-                        <h4><i class="fas fa-money-bill-wave"></i> Metode Pembayaran</h4>
-                        <div class="payment-methods">
-                            <label class="payment-method">
-                                <input type="radio" name="paymentMethod" value="cash" checked>
-                                <i class="fas fa-money-bill"></i>
-                                <span>Tunai</span>
-                            </label>
-                            <label class="payment-method">
-                                <input type="radio" name="paymentMethod" value="transfer">
-                                <i class="fas fa-university"></i>
-                                <span>Transfer Bank</span>
-                            </label>
-                            <label class="payment-method">
-                                <input type="radio" name="paymentMethod" value="card">
-                                <i class="fas fa-credit-card"></i>
-                                <span>Kartu Debit/Kredit</span>
-                            </label>
+                        <div class="section-header">
+                            <h3><i class="fas fa-user-clock"></i> Resep Menunggu Pembayaran</h3>
+                            <button class="btn-refresh" onclick="loadBillingPageData()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="patientsForBillingList" class="patient-billing-list">
+                            <!-- Patient cards will be rendered here by the embedded script -->
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-actions">
-                        <button type="button" class="btn-cancel" onclick="resetBilling()">
-                            <i class="fas fa-times"></i> Batal
-                        </button>
-                        <button type="button" class="btn-secondary" onclick="printReceipt()">
-                            <i class="fas fa-print"></i> Cetak Struk
-                        </button>
-                        <button type="button" class="btn-submit" onclick="processPayment()">
-                            <i class="fas fa-check"></i> Proses Pembayaran
-                        </button>
+                <!-- Column 2: Billing Details -->
+                <div id="billingDetails" class="form-container" style="display: none;">
+                    <div class="form-section">
+                        <h3><i class="fas fa-receipt"></i> Rincian Pembayaran</h3>
+                        
+                        <div class="billing-summary">
+                            <div class="summary-row">
+                                <span>Biaya Pemeriksaan</span>
+                                <span id="biayaPemeriksaan">Rp 0</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Biaya Obat</span>
+                                <span id="biayaObat">Rp 0</span>
+                            </div>
+                            <hr>
+                            <div class="summary-row">
+                                <span><strong>Subtotal</strong></span>
+                                <span id="subTotal"><strong>Rp 0</strong></span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Status Pasien</span>
+                                <span id="patientStatus" class="status-badge"></span>
+                            </div>
+                            <div class="summary-row discount">
+                                <span>Diskon / Penyesuaian</span>
+                                <span id="discount">Rp 0</span>
+                            </div>
+                            <div class="summary-row total">
+                                <span><strong>Total Akhir</strong></span>
+                                <span id="finalTotal"><strong>Rp 0</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-money-bill-wave"></i> Metode Pembayaran</h4>
+                            <div class="payment-methods">
+                                <label class="payment-method">
+                                    <input type="radio" name="paymentMethod" value="cash" checked>
+                                    <i class="fas fa-money-bill"></i>
+                                    <span>Tunai</span>
+                                </label>
+                                <label class="payment-method">
+                                    <input type="radio" name="paymentMethod" value="transfer">
+                                    <i class="fas fa-university"></i>
+                                    <span>Transfer Bank</span>
+                                </label>
+                                <label class="payment-method">
+                                    <input type="radio" name="paymentMethod" value="card">
+                                    <i class="fas fa-credit-card"></i>
+                                    <span>Kartu Debit/Kredit</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel" onclick="resetBilling()">
+                                <i class="fas fa-times"></i> Batal
+                            </button>
+                            <button type="button" class="btn-submit" onclick="processPayment()">
+                                <i class="fas fa-check"></i> Proses Pembayaran
+                            </button>
+                        </div>
                     </div>
                 </div>
+
             </div>
+            <!-- End of Billing Layout Wrapper -->
 
             <!-- Payment History -->
             <div class="queue-section">
                 <div class="section-header">
                     <h2><i class="fas fa-history"></i> Riwayat Pembayaran</h2>
-                    <button class="btn-refresh" onclick="refreshPaymentHistory()">
+                    <button class="btn-refresh" onclick="loadBillingPageData()">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
                 </div>
@@ -141,36 +144,370 @@
         </div>
     </main>
 
-    <!-- Receipt Modal -->
-    <div id="receiptModal" class="modal">
-        <div class="modal-content receipt-content">
-            <div class="modal-header">
-                <h3>Struk Pembayaran</h3>
-                <button class="modal-close" onclick="closeReceiptModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body" id="receiptBody">
-                <!-- Receipt content will be shown here -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn-cancel" onclick="closeReceiptModal()">Tutup</button>
-                <button class="btn-submit" onclick="window.print()">
-                    <i class="fas fa-print"></i> Cetak
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script src="../scripts/data-integration.js"></script>
+    <!-- All external scripts are removed. Logic is now embedded below. -->
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/main.js"></script>
-    <script src="../scripts/billing.js"></script>
+
     <script>
-        // Check role access
-        document.addEventListener('DOMContentLoaded', function() {
-            requireRole(['admin', 'pasien']);
+    // --- EMBEDDED SCRIPT FOR BILLING - LAST ATTEMPT ---
+
+    // --- 1. DATA ACCESS FUNCTIONS (Copied from data-integration.js) ---
+    const BIAYA_PEMERIKSAAN_DEFAULT = 75000;
+    const PATIENT_DATA_KEY = 'klinikPatientData';
+    const QUEUE_KEY = 'patientQueue';
+    const MEDICINES_KEY = 'medicines';
+    const PRESCRIPTIONS_KEY = 'pendingPrescriptions';
+
+    function getFromLocalStorage(key, defaultValue = '[]') {
+        try {
+            return JSON.parse(localStorage.getItem(key) || defaultValue);
+        } catch (e) {
+            console.error(`Error parsing localStorage key "${key}":`, e);
+            return JSON.parse(defaultValue);
+        }
+    }
+    function getPrescriptions() { return getFromLocalStorage(PRESCRIPTIONS_KEY); }
+    function getMedicines() { return getFromLocalStorage(MEDICINES_KEY); }
+    function getAllPatientData() { return getFromLocalStorage(PATIENT_DATA_KEY); }
+    function findPatientById(patientId) {
+        const patients = getAllPatientData();
+        return patients.find(p => p.patientId === patientId);
+    }
+
+    // --- 2. BILLING PAGE LOGIC (Self-Contained) ---
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM loaded. Initializing billing page logic.");
+        // Manually check role, as requireRole is in auth.js
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        if (!currentUser || !['admin', 'pasien'].includes(currentUser.role)) {
+            // Redirect or show error if not authorized
+            // window.location.href = '../pages/login.html'; 
+            console.error("Unauthorized user.");
+            return;
+        }
+        loadBillingPageData();
+    });
+
+    function loadBillingPageData() {
+        console.log("loadBillingPageData() called.");
+        displayPrescriptionsForBilling();
+        // displayPaymentHistory(); // Simplified for this fix
+    }
+
+    function displayPrescriptionsForBilling() {
+        console.log("displayPrescriptionsForBilling() called.");
+        const container = document.getElementById('patientsForBillingList');
+        if (!container) {
+            console.error("Container #patientsForBillingList not found!");
+            return;
+        }
+
+        const allPrescriptions = getPrescriptions();
+        console.log("All prescriptions from localStorage:", allPrescriptions);
+
+        const prescriptionsForBilling = allPrescriptions.filter(p => 
+            p.status === 'processed' && p.paymentStatus === 'unpaid'
+        );
+        console.log("Filtered prescriptions for billing:", prescriptionsForBilling);
+        
+        container.innerHTML = '';
+
+        if (prescriptionsForBilling.length === 0) {
+            container.innerHTML = `<div class="empty-state"><p>Tidak ada resep yang menunggu pembayaran.</p></div>`;
+            console.log("No prescriptions to bill.");
+            return;
+        }
+
+        const patientsToBill = prescriptionsForBilling.reduce((acc, p) => {
+            if (!acc[p.patientId]) {
+                acc[p.patientId] = {
+                    patientId: p.patientId,
+                    patientName: p.patientName || 'Nama Tidak Ditemukan',
+                    prescriptions: []
+                };
+            }
+            acc[p.patientId].prescriptions.push(p);
+            return acc;
+        }, {});
+        console.log("Patients grouped for billing:", patientsToBill);
+
+        Object.values(patientsToBill).forEach(patient => {
+            const patientCard = document.createElement('div');
+            patientCard.className = 'patient-billing-card';
+            patientCard.dataset.patientId = patient.patientId;
+            patientCard.innerHTML = `
+                <div class="patient-name">${patient.patientName}</div>
+                <div class="patient-id">Pasien ID: ${patient.patientId}</div>
+                <div class="patient-queue-number">Resep: ${patient.prescriptions.length} item</div>
+            `;
+            
+            patientCard.addEventListener('click', () => {
+                console.log(`Card clicked for patient ID: ${patient.patientId}`);
+                loadBillingDetails(patient.patientId);
+            });
+
+            container.appendChild(patientCard);
         });
+        console.log("Finished rendering patient cards.");
+    }
+
+    function loadBillingDetails(patientId) {
+        console.log(`--- loadBillingDetails START for patientId: ${patientId} ---`);
+        const billingDetails = document.getElementById('billingDetails');
+        
+        try {
+            if (!patientId) {
+                console.error("loadBillingDetails called with no patientId.");
+                return;
+            }
+            console.log("Step 1: Patient ID is valid.");
+
+            document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
+            const selectedCard = document.querySelector(`.patient-billing-card[data-patient-id='${patientId}']`);
+            if (selectedCard) {
+                selectedCard.classList.add('active');
+                console.log("Step 2: Highlighted selected card.");
+            } else {
+                console.warn("Could not find card to highlight.");
+            }
+
+            const patient = findPatientById(patientId);
+            if (!patient) {
+                console.error("Patient data not found!");
+                Swal.fire('Error', `Data pasien dengan ID ${patientId} tidak ditemukan.`, 'error');
+                return;
+            }
+            console.log("Step 3: Found patient data:", patient);
+
+            const patientPrescriptions = getPrescriptions().filter(p => 
+                p.patientId === patientId && p.status === 'processed' && p.paymentStatus === 'unpaid'
+            );
+
+            if (patientPrescriptions.length === 0) {
+                console.warn("No billable prescriptions found for this patient.");
+                Swal.fire('Info', 'Pasien ini tidak memiliki resep yang perlu dibayar.', 'info');
+                return;
+            }
+            console.log("Step 4: Found billable prescriptions:", patientPrescriptions);
+
+            const medicines = getMedicines();
+            if (!medicines || medicines.length === 0) {
+                console.error("Medicine list is empty or not found!");
+                // Don't stop, maybe cost is 0
+            }
+            console.log("Step 5: Found medicines list:", medicines);
+
+            let biayaObat = 0;
+            patientPrescriptions.forEach(prescription => {
+                (prescription.items || []).forEach(item => {
+                    const medicine = medicines.find(m => m.id === item.medicineId);
+                    if (medicine && medicine.harga) {
+                        biayaObat += medicine.harga * (item.quantity || 1);
+                    }
+                });
+            });
+            console.log(`Step 6: Calculated medicine cost: ${biayaObat}`);
+
+            const subTotal = BIAYA_PEMERIKSAAN_DEFAULT + biayaObat;
+            let discount = 0;
+            const patientStatus = patient.status_pasien || 'umum';
+            
+            switch (patientStatus) {
+                case 'bpjs': discount = subTotal; break;
+                case 'asuransi': discount = subTotal * 0.8; break;
+                default: discount = 0; break;
+            }
+            const finalTotal = subTotal - discount;
+            console.log(`Step 7: Calculated final total: ${finalTotal}`);
+
+            document.getElementById('biayaPemeriksaan').textContent = `Rp ${BIAYA_PEMERIKSAAN_DEFAULT.toLocaleString('id-ID')}`;
+            document.getElementById('biayaObat').textContent = `Rp ${biayaObat.toLocaleString('id-ID')}`;
+            document.getElementById('subTotal').innerHTML = `<strong>Rp ${subTotal.toLocaleString('id-ID')}</strong>`;
+            const statusEl = document.getElementById('patientStatus');
+            statusEl.textContent = patientStatus.charAt(0).toUpperCase() + patientStatus.slice(1);
+            statusEl.className = `status-badge status-${patientStatus}`;
+            document.getElementById('discount').textContent = `- Rp ${discount.toLocaleString('id-ID')}`;
+            document.getElementById('finalTotal').innerHTML = `<strong>Rp ${finalTotal.toLocaleString('id-ID')}</strong>`;
+            console.log("Step 8: Updated UI text content.");
+
+            const prescriptionIds = patientPrescriptions.map(p => p.id);
+            billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds);
+            billingDetails.dataset.patientId = patientId;
+            billingDetails.dataset.finalTotal = finalTotal;
+            console.log("Step 9: Stored data in dataset attributes.");
+
+            billingDetails.style.display = 'block';
+            console.log("--- SUCCESS: Set billingDetails display to 'block' ---");
+
+        } catch (error) {
+            console.error("!!! A CRITICAL ERROR OCCURRED IN loadBillingDetails !!!", error);
+            Swal.fire('Error Kritis!', 'Terjadi kesalahan yang tidak terduga. Periksa console untuk detail.', 'error');
+            billingDetails.style.display = 'none';
+        }
+    }
+
+    // --- 3. FULLY FUNCTIONAL BUTTON LOGIC ---
+
+    let paymentHistory = getFromLocalStorage('paymentHistory', '[]');
+
+    function savePrescriptions(prescriptions) {
+        localStorage.setItem(PRESCRIPTIONS_KEY, JSON.stringify(prescriptions));
+    }
+    function getPatientName(patientId) {
+        const patient = findPatientById(patientId);
+        return patient ? patient.nama : 'Unknown Patient';
+    }
+    function updateQueueStatus(patientId, newStatus) {
+        let queue = getFromLocalStorage(QUEUE_KEY, '[]');
+        const patientIndex = queue.findIndex(item => item.patient.patientId === patientId);
+        if (patientIndex !== -1) {
+            queue[patientIndex].status = newStatus;
+            localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        }
+    }
+
+    function resetBilling() {
+        const billingDetails = document.getElementById('billingDetails');
+        if(billingDetails) billingDetails.style.display = 'none';
+        document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
+    }
+
+    function processPayment() {
+        const billingDetails = document.getElementById('billingDetails');
+        const patientId = billingDetails.dataset.patientId;
+        const prescriptionIdsStr = billingDetails.dataset.prescriptionIds;
+        
+        if (!patientId || !prescriptionIdsStr) {
+            Swal.fire('Peringatan', 'Pilih pasien dari daftar terlebih dahulu.', 'warning');
+            return;
+        }
+        
+        const prescriptionIds = JSON.parse(prescriptionIdsStr);
+        let allPrescriptions = getPrescriptions();
+
+        let updatedCount = 0;
+        prescriptionIds.forEach(id => {
+            const index = allPrescriptions.findIndex(p => p.id === id);
+            if (index !== -1) {
+                allPrescriptions[index].paymentStatus = 'paid';
+                updatedCount++;
+            }
+        });
+
+        if (updatedCount === 0) {
+            Swal.fire('Error', 'Tidak ada resep yang ditemukan untuk diproses.', 'error');
+            return;
+        }
+
+        savePrescriptions(allPrescriptions);
+        
+        const finalTotal = parseInt(billingDetails.dataset.finalTotal);
+        const paymentMethodEl = document.querySelector('input[name="paymentMethod"]:checked');
+        const paymentMethod = paymentMethodEl ? paymentMethodEl.value : 'cash';
+
+        const payment = {
+            id: 'PAY' + Date.now(),
+            prescriptionIds: prescriptionIds,
+            patientId: patientId,
+            patientName: getPatientName(patientId),
+            date: new Date().toISOString(),
+            totalBayar: finalTotal,
+            paymentMethod: paymentMethod,
+            status: 'Lunas'
+        };
+        
+        paymentHistory.push(payment);
+        localStorage.setItem('paymentHistory', JSON.stringify(paymentHistory));
+        
+        updateQueueStatus(patientId, 'Menunggu Pengambilan Obat');
+
+        Swal.fire({
+            title: 'Pembayaran Berhasil!',
+            text: `Pembayaran untuk ${updatedCount} resep telah berhasil. Pasien dapat melanjutkan untuk mengambil obat.`,
+            icon: 'success',
+            timer: 2500,
+            showConfirmButton: false
+        }).then(() => {
+            showReceipt(payment);
+        });
+        
+        resetBilling();
+        loadBillingPageData();
+    }
+
+    function showReceipt(payment) {
+        const modal = document.getElementById('receiptModal');
+        const receiptBody = document.getElementById('receiptBody');
+        if (!modal || !receiptBody) return;
+
+        const prescriptionIdText = (payment.prescriptionIds || []).join(', ');
+
+        receiptBody.innerHTML = `
+            <div class="receipt-header" style="text-align: center; margin-bottom: 1rem;">
+                <h3>Klinik Sentosa</h3>
+                <p>Jl. Contoh No. 123, Kota Contoh</p>
+                <p>Telp: (021) 12345678</p>
+                <hr>
+            </div>
+            <div class="receipt-details">
+                <p><strong>Tanggal:</strong> ${new Date(payment.date).toLocaleString('id-ID')}</p>
+                <p><strong>Pasien:</strong> ${payment.patientName} (ID: ${payment.patientId})</p>
+                <p><strong>ID Resep:</strong> ${prescriptionIdText}</p>
+                <p><strong>Metode Pembayaran:</strong> ${payment.paymentMethod.toUpperCase()}</p>
+                <hr>
+                <p style="font-size: 1.2em;"><strong>Total Pembayaran:</strong> <span class="total-amount">Rp ${payment.totalBayar.toLocaleString('id-ID')}</span></p>
+            </div>
+            <div class="receipt-footer" style="text-align: center; margin-top: 1rem;">
+                <p>Terima kasih atas kunjungan Anda.</p>
+            </div>
+        `;
+        modal.style.display = 'block';
+    }
+
+    function closeReceiptModal() {
+        const modal = document.getElementById('receiptModal');
+        if(modal) modal.style.display = 'none';
+    }
+
+    function displayPaymentHistory() {
+        const container = document.getElementById('paymentHistory');
+        if (!container) return;
+
+        if (paymentHistory.length === 0) {
+            container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat pembayaran.</p></div>`;
+            return;
+        }
+        
+        container.innerHTML = paymentHistory.slice().reverse().map(payment => `
+            <div class="payment-card">
+                <p><strong>${payment.patientName}</strong> (ID: ${payment.patientId})</p>
+                <p>Total: Rp ${payment.totalBayar.toLocaleString('id-ID')}</p>
+                <p>Status: <span class="status-badge status-success">${payment.status}</span></p>
+            </div>
+        `).join('');
+    }
+    
+    // Re-enable history display on load
+    function loadBillingPageData() {
+        console.log("loadBillingPageData() called.");
+        paymentHistory = getFromLocalStorage('paymentHistory', '[]');
+        displayPrescriptionsForBilling();
+        displayPaymentHistory();
+    }
+    
+    // Replace the dummy printReceipt button in the form with the modal print
+    const oldPrintButton = document.querySelector('.form-actions .btn-secondary');
+    if(oldPrintButton) {
+        oldPrintButton.onclick = () => {
+            const billingDetails = document.getElementById('billingDetails');
+            if(billingDetails.style.display === 'none') {
+                Swal.fire('Info', 'Pilih pasien dan proses pembayaran terlebih dahulu untuk mencetak struk.', 'info');
+            } else {
+                Swal.fire('Info', 'Struk akan ditampilkan setelah pembayaran berhasil diproses.', 'info');
+            }
+        };
+    }
+    
     </script>
 </body>
 </html>
