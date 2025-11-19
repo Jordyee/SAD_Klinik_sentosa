@@ -109,6 +109,38 @@ function initializeSampleData() {
         }];
         localStorage.setItem(PATIENT_DATA_KEY, JSON.stringify(initialData));
     }
+
+    // Initialize pending prescriptions if not present (for demo)
+    if (!localStorage.getItem(PRESCRIPTIONS_KEY)) {
+        const samplePrescriptions = [
+            {
+                id: 'PR001',
+                patientId: 'P001',
+                patientName: 'dave',
+                date: new Date().toISOString(),
+                notes: 'Resep demo untuk testing',
+                status: 'processed',
+                paymentStatus: 'unpaid',
+                items: [
+                    { id: 'item_1', medicineId: 'M001', medicineName: 'Paracetamol 500mg', quantity: 2 },
+                    { id: 'item_2', medicineId: 'M003', medicineName: 'Ibuprofen 400mg', quantity: 1 }
+                ]
+            },
+            {
+                id: 'PR002',
+                patientId: 'P001',
+                patientName: 'dave',
+                date: new Date().toISOString(),
+                notes: 'Resep kedua untuk testing',
+                status: 'processed',
+                paymentStatus: 'unpaid',
+                items: [
+                    { id: 'item_3', medicineId: 'M002', medicineName: 'Amoxicillin 500mg', quantity: 3 }
+                ]
+            }
+        ];
+        savePrescriptions(samplePrescriptions);
+    }
 }
 
 // Initialize on page load

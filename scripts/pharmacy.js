@@ -47,7 +47,10 @@ function savePrescriptions(prescriptions) { localStorage.setItem('pendingPrescri
 
 function displayPrescriptions() {
     const container = document.getElementById('prescriptionsList');
-    const prescriptions = getPrescriptions().filter(p => p.status !== 'completed' && p.status !== 'cancelled');
+    const prescriptions = getPrescriptions().filter(p => 
+        (p.status === 'pending' || p.status === 'pending_doctor_review') || 
+        (p.status === 'processed' && p.paymentStatus === 'paid')
+    );
     const queue = getQueue();
 
     if (prescriptions.length === 0) {
@@ -64,12 +67,9 @@ function displayPrescriptions() {
 
         if (p.status === 'pending') {
             actionButton = `<button class="btn-action btn-select" onclick="viewPrescription('${p.id}')"><i class="fas fa-cogs"></i> Proses Resep</button>`;
-        } else if (p.status === 'processed' && patientStatus === 'Menunggu Pengambilan Obat') {
+        } else if (p.status === 'processed' && p.paymentStatus === 'paid') { // Changed condition
             actionButton = `<button class="btn-action btn-complete" onclick="handOverMedicine('${p.id}')"><i class="fas fa-check-double"></i> Serahkan Obat</button>`;
             statusText = 'Siap Diambil';
-        } else if (p.status === 'processed') {
-            actionButton = `<p class="info-text">Menunggu pembayaran di kasir...</p>`;
-            statusText = 'Menunggu Pembayaran';
         } else if (p.status === 'pending_doctor_review') {
             actionButton = `<p class="info-text text-danger">Menunggu tinjauan dokter...</p>`;
         }
@@ -188,6 +188,13 @@ function processPrescription() {
     prescriptions[idx].status = 'processed';
     savePrescriptions(prescriptions);
     updateQueueStatus(prescriptions[idx].patientId, 'Menunggu Pembayaran');
+    
+    console.log('PHARMACY: Prescription processed:', {
+        id: prescriptionId,
+        status: prescriptions[idx].status,
+        paymentStatus: prescriptions[idx].paymentStatus
+    });
+    console.log('PHARMACY: All prescriptions after processing:', getPrescriptions());
     
     Swal.fire('Berhasil', 'Resep diproses. Pasien diarahkan ke kasir.', 'success');
     closePrescriptionModal();

@@ -25,10 +25,14 @@ function displayPrescriptionsForBilling() {
     const container = document.getElementById('patientsForBillingList');
     if (!container) return;
 
+    const allPrescriptions = getPrescriptions();
+    console.log('BILLING: All prescriptions available:', allPrescriptions);
+
     // Get prescriptions that are processed but unpaid
-    const prescriptionsForBilling = getPrescriptions().filter(p => 
+    const prescriptionsForBilling = allPrescriptions.filter(p => 
         p.status === 'processed' && p.paymentStatus === 'unpaid'
     );
+    console.log('BILLING: Prescriptions filtered for billing:', prescriptionsForBilling);
     
     container.innerHTML = ''; // Clear previous list
 
