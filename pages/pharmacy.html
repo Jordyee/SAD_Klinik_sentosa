@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <!-- Header Navigation -->
@@ -44,15 +45,18 @@
                 <p>Kelola resep, distribusi obat, dan stok obat</p>
             </div>
 
-            <!-- Tabs -->
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchPharmacyTab('prescriptions')">
+                <button class="tab-btn active" data-tab="prescriptions">
                     <i class="fas fa-prescription"></i>
                     Resep Masuk
                 </button>
-                <button class="tab-btn" onclick="switchPharmacyTab('stock')">
+                <button class="tab-btn" data-tab="stock">
                     <i class="fas fa-boxes"></i>
                     Manajemen Stok
+                </button>
+                <button class="tab-btn" data-tab="history">
+                    <i class="fas fa-history"></i>
+                    Riwayat
                 </button>
             </div>
 
@@ -103,6 +107,16 @@
                     </table>
                 </div>
             </div>
+
+            <!-- History Tab -->
+            <div id="historyTab" class="tab-content">
+                <div class="section-header">
+                    <h2><i class="fas fa-history"></i> Riwayat Transaksi Obat</h2>
+                </div>
+                <div id="pharmacyHistoryList" class="history-list">
+                    <!-- History will be populated by JavaScript -->
+                </div>
+            </div>
         </div>
     </main>
 
@@ -127,39 +141,85 @@
         </div>
     </div>
 
-    <!-- Add Medicine Modal -->
+    <!-- Add/Edit Medicine Modals -->
     <div id="addMedicineModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Tambah Obat Baru</h3>
-                <button class="modal-close" onclick="closeAddMedicineModal()">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button class="modal-close" onclick="closeMedicineModal('add')">&times;</button>
             </div>
-            <div class="modal-body">
-                <form id="addMedicineForm" class="patient-form">
+            <form id="addMedicineForm" onsubmit="addMedicine(event)">
+                <div class="modal-body">
                     <div class="form-group">
-                        <label for="medicineName">Nama Obat <span class="required">*</span></label>
-                        <input type="text" id="medicineName" required placeholder="Masukkan nama obat">
+                        <label for="addMedicineName">Nama Obat</label>
+                        <input type="text" id="addMedicineName" required>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="medicineStock">Stok Awal <span class="required">*</span></label>
-                            <input type="number" id="medicineStock" required min="0" placeholder="0">
+                            <label for="addMedicineStock">Stok</label>
+                            <input type="number" id="addMedicineStock" required min="0">
                         </div>
                         <div class="form-group">
-                            <label for="medicinePrice">Harga Satuan (Rp) <span class="required">*</span></label>
-                            <input type="number" id="medicinePrice" required min="0" placeholder="0">
+                            <label for="addMedicinePrice">Harga</label>
+                            <input type="number" id="addMedicinePrice" required min="0">
                         </div>
                     </div>
-                </form>
+                    <div class="form-group">
+                        <label for="addMedicineGolongan">Golongan</label>
+                        <select id="addMedicineGolongan" required>
+                            <option value="Bebas">Bebas</option>
+                            <option value="Bebas Terbatas">Bebas Terbatas</option>
+                            <option value="Keras">Keras</option>
+                            <option value="Narkotika">Narkotika</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeMedicineModal('add')">Batal</button>
+                    <button type="submit" class="btn-submit">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editMedicineModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Obat</h3>
+                <button class="modal-close" onclick="closeMedicineModal('edit')">&times;</button>
             </div>
-            <div class="modal-footer">
-                <button class="btn-cancel" onclick="closeAddMedicineModal()">Batal</button>
-                <button class="btn-submit" onclick="addMedicine()">
-                    <i class="fas fa-save"></i> Simpan
-                </button>
-            </div>
+            <form id="editMedicineForm" onsubmit="updateMedicine(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="editMedicineId">
+                    <div class="form-group">
+                        <label for="editMedicineName">Nama Obat</label>
+                        <input type="text" id="editMedicineName" required>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="editMedicineStock">Stok</label>
+                            <input type="number" id="editMedicineStock" required min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="editMedicinePrice">Harga</label>
+                            <input type="number" id="editMedicinePrice" required min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMedicineGolongan">Golongan</label>
+                        <select id="editMedicineGolongan" required>
+                            <option value="Bebas">Bebas</option>
+                            <option value="Bebas Terbatas">Bebas Terbatas</option>
+                            <option value="Keras">Keras</option>
+                            <option value="Narkotika">Narkotika</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeMedicineModal('edit')">Batal</button>
+                    <button type="submit" class="btn-submit">Update</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -167,12 +227,3 @@
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/main.js"></script>
     <script src="../scripts/pharmacy.js"></script>
-    <script>
-        // Check role access
-        document.addEventListener('DOMContentLoaded', function() {
-            requireRole(['apotek', 'admin']);
-        });
-    </script>
-</body>
-</html>
-

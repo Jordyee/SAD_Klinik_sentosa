@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panduan Pengguna - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="dashboard.html" class="nav-link">Dasbor</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Panduan Pengguna</h1>
+                <p>Panduan penggunaan sistem berdasarkan peran Anda.</p>
+            </div>
+
+            <div class="guide-container">
+                <!-- Panduan untuk Pasien -->
+                <div id="guide-pasien" class="guide-section" style="display: none;">
+                    <h2>Panduan untuk Pasien</h2>
+                    <p>Sebagai pasien, Anda dapat menggunakan sistem ini untuk...</p>
+                    <ul>
+                        <li>Mendaftarkan akun pengguna baru.</li>
+                        <li>Melengkapi data klinis Anda satu kali.</li>
+                        <li>Melihat profil Anda di dasbor.</li>
+                        <li>Mendaftarkan diri ke antrian untuk pemeriksaan.</li>
+                    </ul>
+                </div>
+
+                <!-- Panduan untuk Admin -->
+                <div id="guide-admin" class="guide-section" style="display: none;">
+                    <h2>Panduan untuk Admin</h2>
+                    <p>Sebagai admin, Anda memiliki akses ke beberapa fitur kunci...</p>
+                    <ul>
+                        <li>Mendaftarkan pasien baru dan lama ke dalam antrian.</li>
+                        <li>Membuat akun baru untuk staff (dokter, perawat, dll).</li>
+                        <li>Melihat detail pasien dalam antrian.</li>
+                        <li>Memproses pembayaran di kasir.</li>
+                    </ul>
+                </div>
+
+                <!-- Panduan untuk Dokter -->
+                <div id="guide-dokter" class="guide-section" style="display: none;">
+                    <h2>Panduan untuk Dokter</h2>
+                    <p>Sebagai dokter, alur kerja utama Anda adalah...</p>
+                    <ul>
+                        <li>Melihat pasien yang menunggu konsultasi.</li>
+                        <li>Melihat data vital yang telah diinput perawat.</li>
+                        <li>Mengisi hasil pemeriksaan dan diagnosa.</li>
+                        <li>Membuat resep jika diperlukan.</li>
+                        <li>Menangani resep bermasalah yang dilaporkan apotek.</li>
+                    </ul>
+                </div>
+                
+                <!-- Panduan untuk Perawat -->
+                <div id="guide-perawat" class="guide-section" style="display: none;">
+                    <h2>Panduan untuk Perawat</h2>
+                    <p>Sebagai perawat, tugas Anda meliputi...</p>
+                    <ul>
+                        <li>Memilih pasien dari antrian pemeriksaan.</li>
+                        <li>Mengisi data vital pasien (tinggi, berat, tensi, dll).</li>
+                        <li>Melihat riwayat medis pasien untuk pemantauan.</li>
+                    </ul>
+                </div>
+
+                 <!-- Panduan untuk Apotek -->
+                 <div id="guide-apotek" class="guide-section" style="display: none;">
+                    <h2>Panduan untuk Apoteker</h2>
+                    <p>Sebagai apoteker, Anda bertanggung jawab atas...</p>
+                    <ul>
+                        <li>Melihat daftar resep yang masuk.</li>
+                        <li>Memproses resep dan menyiapkan obat.</li>
+                        <li>Melaporkan ke dokter jika stok obat tidak mencukupi.</li>
+                        <li>Menyerahkan obat kepada pasien setelah pembayaran dikonfirmasi.</li>
+                        <li>Mengelola stok obat (tambah/edit).</li>
+                    </ul>
+                </div>
+
+                <div id="guide-default" class="guide-section" style="display: none;">
+                    <h2>Panduan Pengguna</h2>
+                    <p>Panduan umum penggunaan sistem.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/guide.js"></script>
+</body>
+</html>

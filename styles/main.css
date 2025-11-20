@@ -255,6 +255,51 @@ body {
     position: relative;
 }
 
+.user-dropdown {
+    position: absolute;
+    top: 150%;
+    right: 0;
+    background-color: var(--white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    min-width: 180px;
+    z-index: 1100;
+    list-style: none;
+    padding: var(--spacing-xs) 0;
+    border: 1px solid var(--gray-200);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+.user-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    color: var(--gray-700);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--gray-500);
+}
+
+.dropdown-item:hover {
+    background-color: var(--gray-100);
+}
+
 .user-icon::before {
     content: '';
     position: absolute;
