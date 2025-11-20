@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <!-- Header Navigation -->
@@ -44,20 +45,23 @@
                 <p>Daftarkan pasien baru atau cari data pasien lama</p>
             </div>
 
-            <!-- Tabs for New Patient / Existing Patient -->
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('new')">
+                <button class="tab-btn active" data-tab="new">
                     <i class="fas fa-user-plus"></i>
                     Pasien Baru
                 </button>
-                <button class="tab-btn" onclick="switchTab('existing')">
+                <button class="tab-btn" data-tab="existing">
                     <i class="fas fa-search"></i>
                     Pasien Lama
+                </button>
+                <button class="tab-btn admin-only" data-tab="user-management" style="display: none;">
+                    <i class="fas fa-users-cog"></i>
+                    Manajemen Pengguna
                 </button>
             </div>
 
             <!-- New Patient Form -->
-            <div id="newPatientTab" class="tab-content active">
+            <div id="new-tab" class="tab-content active">
                 <div class="form-container">
                     <div id="registrationInfo" class="registration-info">
                         <!-- Pesan informasi setelah pendaftaran akan muncul di sini -->
@@ -104,7 +108,7 @@
             </div>
 
             <!-- Existing Patient Search -->
-            <div id="existingPatientTab" class="tab-content">
+            <div id="existing-tab" class="tab-content">
                 <div class="search-container">
                     <div class="search-box-large">
                         <i class="fas fa-search"></i>
@@ -116,6 +120,52 @@
                     <div class="empty-state">
                         <i class="fas fa-search"></i>
                         <p>Masukkan kata kunci untuk mencari pasien</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management Tab (Admin Only) -->
+            <div id="user-management-tab" class="tab-content admin-only" style="display: none;">
+                <div class="form-container">
+                    <form id="createUserForm" class="patient-form">
+                        <div class="form-section">
+                            <h3><i class="fas fa-user-plus"></i> Buat Akun Staff Baru</h3>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="newUsername">Username <span class="required">*</span></label>
+                                    <input type="text" id="newUsername" required placeholder="Username unik">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newEmail">Email <span class="required">*</span></label>
+                                    <input type="email" id="newEmail" required placeholder="Email valid">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newPassword">Password <span class="required">*</span></label>
+                                    <input type="password" id="newPassword" required placeholder="Password minimal 6 karakter">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newRole">Role <span class="required">*</span></label>
+                                    <select id="newRole" required>
+                                        <option value="">-- Pilih Role --</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="dokter">Dokter</option>
+                                        <option value="perawat">Perawat</option>
+                                        <option value="apotek">Apotek</option>
+                                        <option value="pemilik">Pemilik</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit"><i class="fas fa-plus-circle"></i> Buat Akun</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="user-list-section">
+                    <h3><i class="fas fa-users"></i> Daftar Pengguna Terdaftar</h3>
+                    <div id="userList" class="user-list">
+                        <!-- User list will be populated by JavaScript -->
                     </div>
                 </div>
             </div>
@@ -153,6 +203,24 @@
             }
         });
     </script>
+
+    <!-- Patient Detail Modal (for Admin) -->
+    <div id="patientDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalPatientName">Detail Pasien</h3>
+                <button class="modal-close" onclick="closePatientDetailModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="patientDetailBody">
+                <!-- Details will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closePatientDetailModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

@@ -1,4 +1,109 @@
-// Authentication and Role Management
+// --- User Database Management (Simulated with localStorage) ---
+
+// Initialize the user database if it doesn't exist
+function initializeUsers() {
+    if (!localStorage.getItem('klinikUsers')) {
+        const demoAccounts = [
+            { username: 'pasien', email: 'pasien@klinik.com', password: 'pasien123', role: 'pasien' },
+            { username: 'admin', email: 'admin@klinik.com', password: 'admin123', role: 'admin' },
+            { username: 'dokter', email: 'dokter@klinik.com', password: 'dokter123', role: 'dokter' },
+            { username: 'perawat', email: 'perawat@klinik.com', password: 'perawat123', role: 'perawat' },
+            { username: 'apotek', email: 'apotek@klinik.com', password: 'apotek123', role: 'apotek' },
+            { username: 'pemilik', email: 'pemilik@klinik.com', password: 'pemilik123', role: 'pemilik' }
+        ];
+        localStorage.setItem('klinikUsers', JSON.stringify(demoAccounts));
+    }
+}
+
+// Get all users from localStorage
+function getUsers() {
+    return JSON.parse(localStorage.getItem('klinikUsers')) || [];
+}
+
+// Save users to localStorage
+function saveUsers(users) {
+    localStorage.setItem('klinikUsers', JSON.stringify(users));
+}
+
+// Authenticate user
+function authenticateUser(username, password, role) {
+    const users = getUsers();
+    const user = users.find(u => u.username === username && u.password === password && u.role === role);
+    
+    if (user) {
+        // On successful login, create a session
+        const userSession = {
+            username: user.username,
+            role: user.role,
+            loginTime: new Date().toISOString()
+        };
+        localStorage.setItem('userSession', JSON.stringify(userSession));
+        return user;
+    }
+    
+    // If no exact match is found, return null.
+    return null;
+}
+
+// Find user by username or email
+function findUserByUsernameOrEmail(username, email) {
+    const users = getUsers();
+    return users.find(u => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase());
+}
+
+// Register a new user
+function registerUser(username, email, password) {
+    if (findUserByUsernameOrEmail(username, email)) {
+        return { success: false, message: 'Username atau email sudah terdaftar.' };
+    }
+    const users = getUsers();
+    const newUser = {
+        username,
+        email,
+        password,
+        role: 'pasien' // New registrations are always for patients
+    };
+    users.push(newUser);
+    saveUsers(users);
+    return { success: true, message: 'Registrasi berhasil! Silakan login.' };
+}
+
+// Create a new user (for Admins)
+function createUser(username, email, password, role) {
+    if (!['admin', 'dokter', 'perawat', 'apotek', 'pemilik'].includes(role)) {
+        return { success: false, message: 'Role tidak valid.' };
+    }
+    if (findUserByUsernameOrEmail(username, email)) {
+        return { success: false, message: 'Username atau email sudah terdaftar.' };
+    }
+    const users = getUsers();
+    const newUser = { username, email, password, role };
+    users.push(newUser);
+    saveUsers(users);
+    return { success: true, message: `Akun untuk role ${role} berhasil dibuat.` };
+}
+
+// Remove a user (for Admins)
+function removeUser(username) {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.username === username) {
+        return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri.' };
+    }
+
+    let users = getUsers();
+    const initialLength = users.length;
+    users = users.filter(user => user.username !== username);
+
+    if (users.length === initialLength) {
+        return { success: false, message: 'Pengguna tidak ditemukan.' };
+    }
+
+    saveUsers(users);
+    return { success: true, message: `Pengguna ${username} berhasil dihapus.` };
+}
+
+
+// --- Session and UI Management ---
 
 // Get current user session
 function getCurrentUser() {
@@ -23,7 +128,12 @@ function isLoggedIn() {
 // Logout function
 function logout() {
     localStorage.removeItem('userSession');
-    window.location.href = 'pages/login.html';
+    const inPagesFolder = window.location.pathname.includes('/pages/');
+    if (inPagesFolder) {
+        window.location.href = 'login.html'; // Already in pages folder
+    } else {
+        window.location.href = 'pages/login.html'; // In root, need to go into pages
+    }
 }
 
 // Check role and redirect if not authorized
@@ -31,13 +141,21 @@ function requireRole(allowedRoles) {
     const currentRole = getCurrentRole();
     
     if (!currentRole) {
-        window.location.href = 'pages/login.html';
+        const inPagesFolder = window.location.pathname.includes('/pages/');
+        window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
         return false;
     }
     
     if (!allowedRoles.includes(currentRole)) {
-        alert(`Akses ditolak! Role ${currentRole} tidak memiliki akses ke halaman ini.`);
-        redirectBasedOnRole(currentRole);
+        Swal.fire({
+            title: 'Akses Ditolak!',
+            text: `Role ${currentRole} tidak memiliki akses ke halaman ini.`,
+            icon: 'error',
+            timer: 3000,
+            timerProgressBar: true
+        }).then(() => {
+            redirectBasedOnRole(currentRole);
+        });
         return false;
     }
     
@@ -45,15 +163,12 @@ function requireRole(allowedRoles) {
 }
 
 // Redirect based on role
-// Otomatis menyesuaikan base path (dipanggil dari index.html atau dari folder pages/)
 function redirectBasedOnRole(role) {
-    // Deteksi apakah saat ini berada di dalam folder pages atau di root
     const inPagesFolder = window.location.pathname.includes('/pages/');
     const base = inPagesFolder ? '' : 'pages/';
 
     switch(role) {
         case 'pasien':
-            // Pasien kembali ke beranda utama
             window.location.href = inPagesFolder ? '../index.html' : 'index.html';
             break;
         case 'admin':
@@ -106,11 +221,11 @@ function getRoleIcon(role) {
 function updateUIForRole() {
     const user = getCurrentUser();
     if (!user) {
-        // Show login button or redirect to login
         const userIcon = document.querySelector('.user-icon');
         if (userIcon) {
             userIcon.onclick = function() {
-                window.location.href = 'pages/login.html';
+                const inPagesFolder = window.location.pathname.includes('/pages/');
+                window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
             };
         }
         return;
@@ -118,7 +233,6 @@ function updateUIForRole() {
     
     const role = user.role;
     
-    // Update user icon with role info
     const userIcon = document.querySelector('.user-icon');
     if (userIcon) {
         userIcon.innerHTML = `
@@ -128,71 +242,101 @@ function updateUIForRole() {
         userIcon.title = `Masuk sebagai: ${getRoleDisplayName(role)}`;
     }
     
-    // Show/hide elements based on role
     hideUnauthorizedElements(role);
-    
-    // Add logout functionality
-    addLogoutOption();
+    setupUserIcon();
 }
 
 // Hide elements not accessible by current role
 function hideUnauthorizedElements(role) {
-    // Define role permissions
     const rolePermissions = {
-        'pasien': {
-            show: ['register', 'billing'],
-            hide: ['examination', 'pharmacy', 'reports']
-        },
-        'admin': {
-            show: ['register', 'billing', 'reports'],
-            hide: ['examination', 'pharmacy']
-        },
-        'dokter': {
-            show: ['examination'],
-            hide: ['register', 'pharmacy', 'billing', 'reports']
-        },
-        'perawat': {
-            show: ['examination'],
-            hide: ['register', 'pharmacy', 'billing', 'reports']
-        },
-        'apotek': {
-            show: ['pharmacy'],
-            hide: ['register', 'examination', 'billing', 'reports']
-        },
-        'pemilik': {
-            show: ['reports'],
-            hide: ['register', 'examination', 'pharmacy', 'billing']
-        }
+        'pasien': { show: ['register'], hide: ['examination', 'pharmacy', 'reports'] },
+        'admin': { show: ['register', 'billing', 'reports'], hide: ['examination', 'pharmacy'] },
+        'dokter': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
+        'perawat': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
+        'apotek': { show: ['pharmacy'], hide: ['register', 'examination', 'billing', 'reports'] },
+        'pemilik': { show: ['reports'], hide: ['register', 'examination', 'pharmacy', 'billing'] }
     };
     
     const permissions = rolePermissions[role];
     if (!permissions) return;
     
-    // Hide navigation links
+    // Hide nav links
     permissions.hide.forEach(page => {
         const links = document.querySelectorAll(`a[href*="${page}"]`);
         links.forEach(link => {
-            link.style.display = 'none';
+            if (link.parentElement.tagName === 'LI' || link.parentElement.classList.contains('nav-left')) {
+                link.style.display = 'none';
+            }
         });
     });
+
+    // Special rule for pharmacist: hide payment button in header
+    if (role === 'apotek') {
+        const paymentButton = document.querySelector("button.btn-primary[onclick*='billing.html']");
+        if (paymentButton) {
+            paymentButton.style.display = 'none';
+        }
+    }
 }
 
-// Add logout option
-function addLogoutOption() {
+// Setup user icon with dropdown menu
+function setupUserIcon() {
     const userIcon = document.querySelector('.user-icon');
-    if (userIcon) {
-        userIcon.onclick = function() {
-            if (confirm('Apakah Anda yakin ingin keluar?')) {
+    if (!userIcon) return;
+
+    // Create dropdown if it doesn't exist
+    let dropdown = userIcon.querySelector('.user-dropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'user-dropdown';
+        userIcon.appendChild(dropdown);
+    }
+
+    const inPagesFolder = window.location.pathname.includes('/pages/');
+    const dashboardPath = inPagesFolder ? 'dashboard.html' : 'pages/dashboard.html';
+
+    dropdown.innerHTML = `
+        <a href="${dashboardPath}" class="dropdown-item"><i class="fas fa-user-cog"></i> Lihat Profil</a>
+        <a href="#" id="logoutButton" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    `;
+
+    // Toggle dropdown
+    userIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('show');
+    });
+
+    // Logout button
+    document.getElementById('logoutButton').addEventListener('click', (e) => {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Anda yakin ingin keluar?',
+            text: "Anda akan dikembalikan ke halaman login.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, keluar!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
                 logout();
             }
-        };
-        userIcon.style.cursor = 'pointer';
-    }
+        });
+    });
+
+    // Hide dropdown when clicking outside
+    window.addEventListener('click', (e) => {
+        if (dropdown.classList.contains('show')) {
+            dropdown.classList.remove('show');
+        }
+    });
 }
 
 // Initialize on page load
 if (typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', function() {
+        initializeUsers(); // Ensure users DB is initialized
         updateUIForRole();
     });
 }

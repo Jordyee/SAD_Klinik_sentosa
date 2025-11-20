@@ -1223,6 +1223,53 @@
     font-size: var(--font-size-sm);
 }
 
+/* --- NEW --- Billing Layout & Patient Billing Card */
+.billing-layout {
+    display: grid;
+    grid-template-columns: 1fr; /* Default to single column on small screens */
+    gap: var(--spacing-xl);
+    align-items: start;
+}
+
+/* On larger screens, switch to two columns */
+@media (min-width: 992px) {
+    .billing-layout {
+        grid-template-columns: 40% 1fr; /* 40% for the list, rest for details */
+    }
+}
+
+.patient-billing-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.patient-billing-card {
+    background: linear-gradient(135deg, var(--white), var(--gray-50));
+    border: 1px solid var(--gray-200);
+    border-left: 5px solid var(--primary-blue);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.patient-billing-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-blue-light);
+    background: var(--white);
+}
+
+.patient-billing-card.active {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    background: rgba(37, 99, 235, 0.05);
+    transform: translateY(-4px) scale(1.02);
+}
+/* --- END NEW --- */
+
 /* Login Page */
 .login-page {
     background: var(--gradient-hero);
