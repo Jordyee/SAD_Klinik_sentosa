@@ -30,14 +30,39 @@ const demoAccounts = {
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
     
-    loginForm.addEventListener('submit', function(e) {
+    loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const selectedRole = document.querySelector('input[name="role"]:checked').value;
         
-        // Check if credentials match demo account
+        // Try API login first (if backend is available)
+        try {
+            if (typeof window.api !== 'undefined' && window.api.auth) {
+                const response = await window.api.auth.login(username, password);
+                
+                if (response.success) {
+                    // Save user session with token
+                    const userSession = {
+                        username: response.user.username,
+                        role: response.user.role,
+                        token: response.token,
+                        loginTime: new Date().toISOString()
+                    };
+                    
+                    localStorage.setItem('userSession', JSON.stringify(userSession));
+                    
+                    // Redirect based on role
+                    redirectBasedOnRole(response.user.role);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.warn('API login failed, falling back to local auth:', error);
+        }
+        
+        // Fallback to local demo accounts if API is not available
         const account = demoAccounts[selectedRole];
         
         if (account && username === account.username && password === account.password) {
