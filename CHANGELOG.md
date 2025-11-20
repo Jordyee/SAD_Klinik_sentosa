@@ -18,6 +18,35 @@ Dokumen ini merangkum semua perubahan, perbaikan bug, dan penambahan fitur yang 
 
 ---
 
+## 9. Perbaikan Besar: Integritas Data, Pencarian, dan Laporan
+
+**Tanggal:** 20 November 2025
+**Kategori:** Perbaikan Kritis, Refaktor, Bugfix
+**Ringkasan:** Serangkaian perbaikan terfokus untuk memperbaiki penanganan data pasien (mencegah overwrite data historis), menambahkan searchbar yang scalable di UI pemilihan pasien, memperbaiki alur pemindahan data dari antrian aktif ke arsip, dan memperbaiki perhitungan laporan harian/bulanan.
+
+Perubahan utama:
+
+- **A. Perbaikan Logika Pasien Lama (Zero-overwrite)**
+    - Mengubah penyimpanan data vital per-pasien dari satu objek yang ditimpa menjadi struktur `vitalsRecords` (append-only) di `localStorage`.
+    - File yang diubah: `scripts/examination.js` — sekarang setiap input data vital menghasilkan entri baru `{id, patientId, date, data}` sehingga kunjungan lama tidak pernah diubah.
+
+- **B. Implementasi Searchbar Scalable**
+    - Menambahkan input pencarian dengan debounce pada seleksi pasien di halaman pemeriksaan (`patientSelect`, `consultationPatientSelect`, `historyPatientSelect`) sehingga filter dilakukan client-side tanpa memuat ulang data atau menghilangkan performa pada dataset besar.
+    - Menambahkan search input pada halaman pembayaran (`patientsForBillingList`) untuk memfilter kartu pasien.
+    - File yang diubah: `scripts/examination.js`, `scripts/billing.js`.
+
+- **C. Alur Data & Riwayat Medis**
+    - Menambahkan fungsi `loadPatientHistory(patientId)` di `scripts/examination.js` untuk menampilkan gabungan catatan vital (perawat) dan catatan pemeriksaan (dokter).
+    - Memastikan bahwa setelah obat diserahkan, antrian pasien ditandai `Selesai` (sudah diperbaiki/ditangani pada `scripts/pharmacy.js`), sehingga tidak menumpuk di antrian aktif.
+
+- **D. Perbaikan Modul Laporan**
+    - Memperbaiki bug NaN pada laporan harian/bulanan dengan memastikan semua field numeric (`totalBayar`, `biayaPemeriksaan`, `biayaObat`) dikonversi ke Number sebelum perhitungan agregat.
+    - Memperbaiki deduplikasi pasien di laporan untuk menggunakan `patient.patientId`.
+    - File yang diubah: `scripts/billing.js`, `scripts/reports.js`.
+
+**Catatan pengujian singkat:** Saya menambahkan pemeriksaan defensif untuk memastikan agregat tidak menghasilkan NaN ketika nilai pembayaran tidak lengkap. Disarankan untuk menjalankan manual smoke test: registrasi pasien, masukkan data vital, lakukan pemeriksaan dokter dengan resep, proses resep di apotek, lakukan pembayaran, dan verifikasi laporan harian/bulanan menampilkan angka yang benar.
+
+
 ## 7. Perombakan Total dan Perbaikan Alur Kerja Pembayaran & Apotek
 
 **Tanggal:** 19 November 2025

@@ -36,7 +36,7 @@ function loadDashboardStats() {
     
     // Calculate stats
     const totalPatients = new Set(todayPayments.map(p => p.patientId)).size;
-    const totalRevenue = todayPayments.reduce((sum, p) => sum + p.totalBayar, 0);
+    const totalRevenue = todayPayments.reduce((sum, p) => sum + (Number(p.totalBayar) || 0), 0);
     
     // Load prescriptions
     const savedPrescriptions = localStorage.getItem('processedPrescriptions');
@@ -63,7 +63,8 @@ function loadDashboardStats() {
 
 // Load daily report
 function loadDailyReport() {
-    const date = document.getElementById('dailyReportDate').value;
+    let date = document.getElementById('dailyReportDate').value;
+    if (!date) date = new Date().toISOString().split('T')[0];
     const container = document.getElementById('dailyReportContent');
     
     // Load data
@@ -76,10 +77,10 @@ function loadDailyReport() {
     const dayPayments = payments.filter(p => p.date.startsWith(date));
     
     const totalPatients = new Set(dayPayments.map(p => p.patientId)).size;
-    const totalRevenue = dayPayments.reduce((sum, p) => sum + p.totalBayar, 0);
+    const totalRevenue = dayPayments.reduce((sum, p) => sum + (Number(p.totalBayar) || 0), 0);
     const totalExaminations = dayPayments.length;
-    const totalBiayaPemeriksaan = dayPayments.reduce((sum, p) => sum + p.biayaPemeriksaan, 0);
-    const totalBiayaObat = dayPayments.reduce((sum, p) => sum + p.biayaObat, 0);
+    const totalBiayaPemeriksaan = dayPayments.reduce((sum, p) => sum + (Number(p.biayaPemeriksaan) || 0), 0);
+    const totalBiayaObat = dayPayments.reduce((sum, p) => sum + (Number(p.biayaObat) || 0), 0);
     
     container.innerHTML = `
         <div class="report-summary">
@@ -148,7 +149,8 @@ function loadDailyReport() {
 
 // Load monthly report
 function loadMonthlyReport() {
-    const month = document.getElementById('monthlyReportMonth').value;
+    let month = document.getElementById('monthlyReportMonth').value;
+    if (!month) month = new Date().toISOString().slice(0,7); // YYYY-MM
     const container = document.getElementById('monthlyReportContent');
     
     // Load data
@@ -159,12 +161,12 @@ function loadMonthlyReport() {
     }
     
     const monthPayments = payments.filter(p => p.date.startsWith(month));
-    
+
     const totalPatients = new Set(monthPayments.map(p => p.patientId)).size;
-    const totalRevenue = monthPayments.reduce((sum, p) => sum + p.totalBayar, 0);
+    const totalRevenue = monthPayments.reduce((sum, p) => sum + (Number(p.totalBayar) || 0), 0);
     const totalExaminations = monthPayments.length;
-    const totalBiayaPemeriksaan = monthPayments.reduce((sum, p) => sum + p.biayaPemeriksaan, 0);
-    const totalBiayaObat = monthPayments.reduce((sum, p) => sum + p.biayaObat, 0);
+    const totalBiayaPemeriksaan = monthPayments.reduce((sum, p) => sum + (Number(p.biayaPemeriksaan) || 0), 0);
+    const totalBiayaObat = monthPayments.reduce((sum, p) => sum + (Number(p.biayaObat) || 0), 0);
     
     // Group by day
     const dailyData = {};
@@ -247,13 +249,14 @@ function loadPatientsData() {
         const queue = JSON.parse(savedQueue);
         patients = queue.map(item => item.patient);
     }
-    
+
     // Remove duplicates
     const uniquePatients = [];
     const seen = new Set();
     patients.forEach(patient => {
-        if (!seen.has(patient.id)) {
-            seen.add(patient.id);
+        const pid = patient.patientId || patient.id || '';
+        if (!seen.has(pid)) {
+            seen.add(pid);
             uniquePatients.push(patient);
         }
     });

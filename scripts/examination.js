@@ -1,6 +1,6 @@
 // Examination Module JavaScript
 
-let patientVitals = {};
+let vitalsRecords = []; // array of vitals entries {id, patientId, date, data}
 let medicalRecords = [];
 let currentPrescriptionItems = []; // Holds items for the current prescription being built
 
@@ -108,8 +108,8 @@ async function editPrescription(prescriptionId) {
 }
 
 function loadExaminationData() {
-    const savedVitals = localStorage.getItem('patientVitals');
-    if (savedVitals) patientVitals = JSON.parse(savedVitals);
+    const savedVitals = localStorage.getItem('vitalsRecords');
+    if (savedVitals) vitalsRecords = JSON.parse(savedVitals);
 
     const savedRecords = localStorage.getItem('medicalRecords');
     if (savedRecords) medicalRecords = JSON.parse(savedRecords);
@@ -173,14 +173,47 @@ function populatePatientSelects() {
         if (!select) return;
 
         const currentValue = select.value;
+        // preserve existing options except default
         while (select.options.length > 1) select.remove(1);
-        
+
+        // Create or ensure a search input exists directly above the select for quicker filtering
+        let searchInput = document.getElementById(selectId + '_search');
+        if (!searchInput) {
+            searchInput = document.createElement('input');
+            searchInput.type = 'search';
+            searchInput.id = selectId + '_search';
+            searchInput.placeholder = 'Cari nama atau ID...';
+            searchInput.className = 'searchable-select-input';
+            select.parentNode.insertBefore(searchInput, select);
+
+            // Debounced filter handler
+            let timeout;
+            searchInput.addEventListener('input', function(e) {
+                clearTimeout(timeout);
+                const q = e.target.value.trim().toLowerCase();
+                timeout = setTimeout(() => {
+                    for (let i = 1; i < select.options.length; i++) {
+                        const opt = select.options[i];
+                        const txt = opt.textContent.toLowerCase();
+                        opt.hidden = q !== '' && !txt.includes(q);
+                    }
+                }, 180);
+            });
+        }
+
+        // Populate options (keep lightweight creation)
         queue.forEach(item => {
             const option = document.createElement('option');
             option.value = item.patient.patientId;
             option.textContent = `${item.patient.nama} (#${item.queueNumber})`;
             select.appendChild(option);
         });
+
+        // Reset any active filter
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
         select.value = currentValue;
     });
 }
@@ -200,10 +233,18 @@ function handleVitalsSubmit(e) {
         suhu_badan: document.getElementById('suhu_badan').value || null,
         keluhan_perawat: document.getElementById('keluhan_perawat').value
     };
-    
-    patientVitals[patientId] = vitalsData;
-    localStorage.setItem('patientVitals', JSON.stringify(patientVitals));
-    
+    // Create a new vitals record instead of overwriting historical vitals
+    const record = {
+        id: 'V' + Date.now(),
+        patientId: patientId,
+        date: new Date().toISOString(),
+        data: vitalsData
+    };
+
+    vitalsRecords.push(record);
+    localStorage.setItem('vitalsRecords', JSON.stringify(vitalsRecords));
+
+    // Move patient forward in queue
     updateQueueStatus(patientId, 'Menunggu Dokter');
     
     Swal.fire('Berhasil', 'Data vital berhasil disimpan.', 'success');
@@ -237,6 +278,7 @@ function handleConsultationSubmit(e) {
         prescriptionItems: needsPrescription ? currentPrescriptionItems : []
     };
     
+    // Append consultation as a new medical record entry (do not overwrite existing history)
     medicalRecords.push(consultationData);
     localStorage.setItem('medicalRecords', JSON.stringify(medicalRecords));
     
@@ -266,23 +308,72 @@ function loadPatientForConsultation(patientId) {
         return;
     }
 
-    const vitals = patientVitals[patientId];
-    
-    if (vitals) {
+    // Find the most recent vitals record for this patient
+    const patientVitalsList = vitalsRecords.filter(v => v.patientId === patientId);
+    if (patientVitalsList.length > 0) {
+        const latest = patientVitalsList.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+        const v = latest.data;
         display.innerHTML = `
             <h4><i class="fas fa-notes-medical"></i> Catatan dari Perawat</h4>
             <div class="vitals-display">
-                <span><strong>Tinggi:</strong> ${vitals.tinggi_badan || '-'} cm</span>
-                <span><strong>Berat:</strong> ${vitals.berat_badan || '-'} kg</span>
-                <span><strong>Tensi:</strong> ${vitals.tensi_darah || '-'}</span>
-                <span><strong>Suhu:</strong> ${vitals.suhu_badan || '-'} °C</span>
+                <span><strong>Tinggi:</strong> ${v.tinggi_badan || '-'} cm</span>
+                <span><strong>Berat:</strong> ${v.berat_badan || '-'} kg</span>
+                <span><strong>Tensi:</strong> ${v.tensi_darah || '-'}</span>
+                <span><strong>Suhu:</strong> ${v.suhu_badan || '-'} °C</span>
             </div>
-            <p><strong>Keluhan Awal:</strong> ${vitals.keluhan_perawat || 'Tidak ada.'}</p>
+            <p><strong>Keluhan Awal:</strong> ${v.keluhan_perawat || 'Tidak ada.'}</p>
+            <p class="vitals-timestamp"><em>Catatan perawat terakhir: ${new Date(latest.date).toLocaleString('id-ID')}</em></p>
         `;
-        keluhanTextarea.value = vitals.keluhan_perawat || '';
+        keluhanTextarea.value = v.keluhan_perawat || '';
     } else {
         display.innerHTML = `<div class="empty-state"><p>Data vital dari perawat belum diinput untuk pasien ini.</p></div>`;
     }
+}
+
+// Load patient history (medical records + vitals list)
+function loadPatientHistory(patientId) {
+    const container = document.getElementById('patientHistoryList');
+    if (!patientId) {
+        container.innerHTML = `<div class="empty-state"><p>Pilih pasien untuk melihat riwayat medis.</p></div>`;
+        return;
+    }
+
+    const records = medicalRecords.filter(r => r.patientId === patientId).slice().reverse();
+    const vitals = vitalsRecords.filter(v => v.patientId === patientId).slice().reverse();
+
+    if (records.length === 0 && vitals.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>Tidak ada riwayat untuk pasien ini.</p></div>`;
+        return;
+    }
+
+    let html = '';
+    if (vitals.length > 0) {
+        html += `<h4>Catatan Vital (Perawat)</h4>`;
+        html += vitals.map(v => `
+            <div class="history-card">
+                <p><strong>Waktu:</strong> ${new Date(v.date).toLocaleString('id-ID')}</p>
+                <p><strong>Tinggi / Berat:</strong> ${v.data.tinggi_badan || '-'} cm / ${v.data.berat_badan || '-'} kg</p>
+                <p><strong>Tensi:</strong> ${v.data.tensi_darah || '-'}</p>
+                <p><strong>Suhu:</strong> ${v.data.suhu_badan || '-'}</p>
+                <p><strong>Keluhan Perawat:</strong> ${v.data.keluhan_perawat || '-'}</p>
+            </div>
+        `).join('');
+    }
+
+    if (records.length > 0) {
+        html += `<h4>Riwayat Pemeriksaan (Dokter)</h4>`;
+        html += records.map(r => `
+            <div class="history-card">
+                <p><strong>Tanggal:</strong> ${new Date(r.date).toLocaleString('id-ID')}</p>
+                <p><strong>Keluhan:</strong> ${r.keluhan}</p>
+                <p><strong>Hasil Pemeriksaan:</strong> ${r.hasil_pemeriksaan}</p>
+                <p><strong>Catatan Dokter:</strong> ${r.catatan_dokter || '-'}</p>
+                ${r.prescriptionItems && r.prescriptionItems.length ? `<p><strong>Resep:</strong> ${r.prescriptionItems.map(i=>i.medicineName+' x'+i.quantity).join(', ')}</p>` : ''}
+            </div>
+        `).join('');
+    }
+
+    container.innerHTML = html;
 }
 
 // --- Prescription Item Management ---
