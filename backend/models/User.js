@@ -1,118 +1,260 @@
-// User Model (SQLite with sqlite3)
-const { getDB } = require('../config/database');
+// User Model (Firebase Firestore + Firebase Auth)
+const { getDB, getAuth, docToObject, snapshotToArray } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 class User {
     /**
-     * Find user by ID
+     * Get Firestore collection reference
      */
-    static async findById(id) {
+    static getCollection() {
         const db = getDB();
-        const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
-        if (user) {
-            user.isActive = Boolean(user.isActive);
-        }
-        return user;
+        return db.collection('users');
     }
 
     /**
-     * Find user by username
+     * Find all users
+     */
+    static async findAll() {
+        try {
+            const snapshot = await this.getCollection()
+                .orderBy('createdAt', 'desc')
+                .get();
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding all users:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find user by Firebase UID
+     */
+    static async findById(uid) {
+        try {
+            const doc = await this.getCollection().doc(uid).get();
+            return docToObject(doc);
+        } catch (error) {
+            console.error('Error finding user by ID:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find user by username (email in Firebase Auth)
      */
     static async findByUsername(username) {
-        const db = getDB();
-        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-        if (user) {
-            user.isActive = Boolean(user.isActive);
+        try {
+            const snapshot = await this.getCollection()
+                .where('username', '==', username)
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) return null;
+            return docToObject(snapshot.docs[0]);
+        } catch (error) {
+            console.error('Error finding user by username:', error);
+            throw error;
         }
-        return user;
     }
 
     /**
-     * Find user by username with password (for login)
+     * Find user by email
      */
-    static async findByUsernameWithPassword(username) {
-        const db = getDB();
-        const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-        if (user) {
-            user.isActive = Boolean(user.isActive);
+    static async findByEmail(email) {
+        try {
+            const auth = getAuth();
+            const userRecord = await auth.getUserByEmail(email);
+
+            // Get additional data from Firestore
+            const userData = await this.findById(userRecord.uid);
+
+            return {
+                uid: userRecord.uid,
+                email: userRecord.email,
+                ...userData
+            };
+        } catch (error) {
+            if (error.code === 'auth/user-not-found') {
+                return null;
+            }
+            console.error('Error finding user by email:', error);
+            throw error;
         }
-        return user;
     }
 
     /**
-     * Create new user
+     * Create new user (Firebase Auth + Firestore)
      */
     static async create(userData) {
-        const db = getDB();
-        const { username, password, role, fullName, email, phone, isActive = true } = userData;
+        try {
+            const auth = getAuth();
+            const {
+                username,
+                password,
+                email,
+                role,
+                fullName,
+                phone,
+                isActive = true
+            } = userData;
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+            // Create user in Firebase Authentication
+            // Use username as email if no email provided
+            const userEmail = email || `${username}@kliniksentosa.local`;
 
-        const result = await db.run(
-            `INSERT INTO users (username, password, role, fullName, email, phone, isActive)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [username, hashedPassword, role, fullName, email || null, phone || null, isActive ? 1 : 0]
-        );
+            const userRecord = await auth.createUser({
+                email: userEmail,
+                password: password,
+                displayName: fullName
+            });
 
-        // Return result object with lastID
-        return result;
-    }
+            // Store additional user data in Firestore
+            const firestoreData = {
+                username,
+                email: userEmail,
+                role,
+                fullName,
+                phone: phone || null,
+                isActive,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
 
-    /**
-     * Compare password
-     */
-    static async comparePassword(candidatePassword, hashedPassword) {
-        return await bcrypt.compare(candidatePassword, hashedPassword);
+            await this.getCollection().doc(userRecord.uid).set(firestoreData);
+
+            return {
+                uid: userRecord.uid,
+                ...firestoreData
+            };
+        } catch (error) {
+            console.error('Error creating user:', error);
+            throw error;
+        }
     }
 
     /**
      * Update user
      */
-    static async update(id, userData) {
-        const db = getDB();
-        const fields = [];
-        const values = [];
+    static async update(uid, userData) {
+        try {
+            const updateData = { ...userData };
+            delete updateData.password; // Password updated separately
+            delete updateData.email; // Email updated separately
+            updateData.updatedAt = new Date();
 
-        if (userData.fullName !== undefined) {
-            fields.push('fullName = ?');
-            values.push(userData.fullName);
+            await this.getCollection().doc(uid).update(updateData);
+            return await this.findById(uid);
+        } catch (error) {
+            console.error('Error updating user:', error);
+            throw error;
         }
-        if (userData.email !== undefined) {
-            fields.push('email = ?');
-            values.push(userData.email);
-        }
-        if (userData.phone !== undefined) {
-            fields.push('phone = ?');
-            values.push(userData.phone);
-        }
-        if (userData.role !== undefined) {
-            fields.push('role = ?');
-            values.push(userData.role);
-        }
-        if (userData.isActive !== undefined) {
-            fields.push('isActive = ?');
-            values.push(userData.isActive ? 1 : 0);
-        }
-        if (userData.password !== undefined) {
-            // Hash new password
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(userData.password, salt);
-            fields.push('password = ?');
-            values.push(hashedPassword);
-        }
+    }
 
-        if (fields.length === 0) {
-            return await this.findById(id);
+    /**
+     * Update password
+     */
+    static async updatePassword(uid, newPassword) {
+        try {
+            const auth = getAuth();
+            await auth.updateUser(uid, {
+                password: newPassword
+            });
+            return true;
+        } catch (error) {
+            console.error('Error updating password:', error);
+            throw error;
         }
+    }
 
-        fields.push('updatedAt = CURRENT_TIMESTAMP');
-        values.push(id);
+    /**
+     * Delete user (soft delete in Firestore, disable in Auth)
+     */
+    static async delete(uid) {
+        try {
+            const auth = getAuth();
 
-        const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
-        await db.run(sql, values);
-        return await this.findById(id);
+            // Disable user in Firebase Auth
+            await auth.updateUser(uid, {
+                disabled: true
+            });
+
+            // Soft delete in Firestore
+            await this.getCollection().doc(uid).update({
+                isActive: false,
+                updatedAt: new Date()
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Verify user credentials (for login)
+     */
+    static async verifyCredentials(username, password) {
+        try {
+            // Find user by username to get email
+            const user = await this.findByUsername(username);
+
+            if (!user) {
+                return null;
+            }
+
+            // Firebase Auth handles password verification
+            // This is typically done on the client side with signInWithEmailAndPassword
+            // On server side, we can create a custom token
+            const auth = getAuth();
+            const customToken = await auth.createCustomToken(user.id);
+
+            return {
+                user,
+                customToken
+            };
+        } catch (error) {
+            console.error('Error verifying credentials:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Verify Firebase ID token
+     */
+    static async verifyToken(idToken) {
+        try {
+            const auth = getAuth();
+            const decodedToken = await auth.verifyIdToken(idToken);
+
+            // Get user data from Firestore
+            const userData = await this.findById(decodedToken.uid);
+
+            return {
+                uid: decodedToken.uid,
+                ...userData
+            };
+        } catch (error) {
+            console.error('Error verifying token:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get users by role
+     */
+    static async findByRole(role) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('role', '==', role)
+                .where('isActive', '==', true)
+                .get();
+
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding users by role:', error);
+            throw error;
+        }
     }
 }
 

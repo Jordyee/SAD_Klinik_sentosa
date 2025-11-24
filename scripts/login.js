@@ -1,113 +1,35 @@
-// Login & Registration Module
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure user database is initialized on load
-    if (typeof initializeUsers === 'function') {
-        initializeUsers();
-    }
+// Login & Registration Module with Firebase Authentication
+// Handles login form, registration form, and Firebase integration
 
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    
+// ==============================================
+// FORM TOGGLE FUNCTIONS
+// ==============================================
+
+// Toggle between login and register forms
+document.addEventListener('DOMContentLoaded', function () {
     const loginCard = document.getElementById('loginCard');
     const registerCard = document.getElementById('registerCard');
-    const showRegisterLink = document.getElementById('showRegister');
-    const showLoginLink = document.getElementById('showLogin');
+    const showRegisterBtn = document.getElementById('showRegister');
+    const showLoginBtn = document.getElementById('showLogin');
 
-    // --- Toggle between Login and Register Views ---
-    if (showRegisterLink) {
-        showRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginCard.style.display = 'none';
-            registerCard.style.display = 'block';
-        });
-    }
+    showRegisterBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        loginCard.style.display = 'none';
+        registerCard.style.display = 'block';
+    });
 
-    if (showLoginLink) {
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            registerCard.style.display = 'none';
-            loginCard.style.display = 'block';
-        });
-    }
-
-    // --- Handle Login Form Submission ---
-    if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const selectedRole = document.querySelector('input[name="role"]:checked').value;
-            
-            const user = authenticateUser(username, password, selectedRole);
-            
-            if (user) {
-                // Redirect based on the role stored in the user's record
-                redirectBasedOnRole(user.role);
-            } else {
-                Swal.fire({
-                    title: 'Login Gagal',
-                    text: 'Username, password, atau role yang Anda pilih salah!',
-                    icon: 'error'
-                });
-            }
-        });
-    }
-
-    // --- Handle Registration Form Submission ---
-    if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const username = document.getElementById('newUsername').value;
-            const email = document.getElementById('newEmail').value;
-            const password = document.getElementById('newPassword').value;
-
-            if (!username || !email || !password) {
-                Swal.fire({
-                    title: 'Oops...',
-                    text: 'Semua field harus diisi!',
-                    icon: 'warning'
-                });
-                return;
-            }
-
-            const result = registerUser(username, email, password);
-
-            if (result.success) {
-                Swal.fire({
-                    title: 'Registrasi Berhasil!',
-                    text: result.message,
-                    icon: 'success'
-                }).then(() => {
-                    // Show login form after successful registration
-                    registerCard.style.display = 'none';
-                    loginCard.style.display = 'block';
-                    // Clear registration form
-                    registerForm.reset();
-                });
-            } else {
-                Swal.fire({
-                    title: 'Registrasi Gagal',
-                    text: result.message,
-                    icon: 'error'
-                });
-            }
-        });
-    }
-
-    // --- Password Toggle Functionality ---
-    const togglePasswordBtn = document.querySelector('.toggle-password');
-    if (togglePasswordBtn) {
-        togglePasswordBtn.addEventListener('click', togglePassword);
-    }
+    showLoginBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        registerCard.style.display = 'none';
+        loginCard.style.display = 'block';
+    });
 });
 
 // Toggle password visibility
 function togglePassword() {
     const passwordInput = document.getElementById('password');
     const toggleIcon = document.getElementById('toggleIcon');
-    
+
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         toggleIcon.classList.remove('fa-eye');
@@ -119,45 +41,207 @@ function togglePassword() {
     }
 }
 
-// Redirect based on role (assuming this is in auth.js, but can be here too)
-function redirectBasedOnRole(role) {
-    const inPagesFolder = window.location.pathname.includes('/pages/');
-    const base = inPagesFolder ? '' : 'pages/';
+// ==============================================
+// LOGIN FORM HANDLER
+// ==============================================
 
-    switch(role) {
-        case 'pasien':
-            window.location.href = inPagesFolder ? '../index.html' : 'index.html';
-            break;
-        case 'admin':
-            window.location.href = base + 'register.html';
-            break;
-        case 'dokter':
-            window.location.href = base + 'examination.html';
-            break;
-        case 'perawat':
-            window.location.href = base + 'examination.html';
-            break;
-        case 'apotek':
-            window.location.href = base + 'pharmacy.html';
-            break;
-        case 'pemilik':
-            window.location.href = base + 'reports.html';
-            break;
-        default:
-            window.location.href = inPagesFolder ? '../index.html' : 'index.html';
-    }
-}
+document.getElementById('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
 
-// Check if user is already logged in and redirect
-(function checkExistingSession() {
-    const session = localStorage.getItem('userSession');
-    if (session) {
-        const userSession = JSON.parse(session);
-        // Don't redirect if we are on the login page itself
-        if (!window.location.pathname.includes('login.html')) {
-             redirectBasedOnRole(userSession.role);
+    const emailOrUsername = document.getElementById('emailOrUsername').value.trim();
+    const password = document.getElementById('password').value;
+
+    // Show loading
+    Swal.fire({
+        title: 'Memproses...',
+        text: 'Sedang login ke sistem',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
         }
+    });
+
+    try {
+        let email = emailOrUsername;
+
+        // Check if input is email or username
+        if (!emailOrUsername.includes('@')) {
+            // It's a username, need to lookup email from Firestore
+            console.log('Looking up email for username:', emailOrUsername);
+
+            const usersQuery = await firebaseDB.collection('users')
+                .where('username', '==', emailOrUsername)
+                .limit(1)
+                .get();
+
+            if (usersQuery.empty) {
+                throw new Error('Username tidak ditemukan');
+            }
+
+            const userData = usersQuery.docs[0].data();
+            email = userData.email;
+            console.log('Found email:', email);
+        }
+
+        // Login with Firebase Auth
+        const result = await loginUser(email, password);
+
+        if (result.success) {
+            const user = result.user;
+
+            Swal.fire({
+                title: 'Login Berhasil!',
+                text: `Selamat datang, ${user.fullName || user.username}!`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                // Redirect based on role
+                redirectBasedOnRole(user.role);
+            });
+        } else {
+            throw new Error(result.message || 'Login gagal');
+        }
+
+    } catch (error) {
+        console.error('Login error:', error);
+
+        let errorMessage = 'Login gagal. Periksa username/email dan password Anda.';
+
+        if (error.message === 'Username tidak ditemukan') {
+            errorMessage = 'Username tidak ditemukan. Pastikan username benar atau gunakan email.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Password salah. Silakan coba lagi.';
+        } else if (error.code === 'auth/user-not-found') {
+            errorMessage = 'Email tidak terdaftar. Silakan daftar terlebih dahulu.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Format email tidak valid.';
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Terlalu banyak percobaan login. Silakan coba lagi nanti.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        Swal.fire({
+            title: 'Login Gagal',
+            text: errorMessage,
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
     }
-})();
+});
 
+// ==============================================
+// REGISTRATION FORM HANDLER
+// ==============================================
 
+document.getElementById('registerForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const fullName = document.getElementById('newFullName').value.trim();
+    const username = document.getElementById('newUsername').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
+    const password = document.getElementById('newPassword').value;
+
+    // Validation
+    if (username.length < 3) {
+        Swal.fire({
+            title: 'Username Tidak Valid',
+            text: 'Username minimal 3 karakter',
+            icon: 'error'
+        });
+        return;
+    }
+
+    if (password.length < 6) {
+        Swal.fire({
+            title: 'Password Terlalu Pendek',
+            text: 'Password minimal 6 karakter',
+            icon: 'error'
+        });
+        return;
+    }
+
+    // Show loading
+    Swal.fire({
+        title: 'Memproses...',
+        text: 'Sedang membuat akun baru',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    try {
+        // Register patient with Firebase
+        const result = await registerPatient(username, email, password, fullName);
+
+        if (result.success) {
+            Swal.fire({
+                title: 'Registrasi Berhasil!',
+                text: result.message,
+                icon: 'success',
+                confirmButtonText: 'Login Sekarang'
+            }).then(() => {
+                // Switch back to login form
+                document.getElementById('registerCard').style.display = 'none';
+                document.getElementById('loginCard').style.display = 'block';
+
+                // Pre-fill email in login form
+                document.getElementById('emailOrUsername').value = email;
+                document.getElementById('password').value = '';
+                document.getElementById('password').focus();
+            });
+        } else {
+            throw new Error(result.message || 'Registrasi gagal');
+        }
+
+    } catch (error) {
+        console.error('Registration error:', error);
+
+        let errorMessage = 'Registrasi gagal. Silakan coba lagi.';
+
+        if (error.message.includes('email')) {
+            errorMessage = error.message;
+        } else if (error.message.includes('username')) {
+            errorMessage = error.message;
+        } else if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'Email sudah terdaftar. Gunakan email lain atau login.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Format email tidak valid.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        Swal.fire({
+            title: 'Registrasi Gagal',
+            text: errorMessage,
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+    }
+});
+
+// ==============================================
+// AUTO-REDIRECT IF ALREADY LOGGED IN
+// ==============================================
+
+// Check if user is already logged in
+if (isLoggedIn()) {
+    const currentUser = getCurrentUser();
+    console.log('User already logged in:', currentUser);
+
+    Swal.fire({
+        title: 'Sudah Login',
+        text: `Anda sudah login sebagai ${currentUser.username}`,
+        icon: 'info',
+        timer: 2000,
+        showConfirmButton: false
+    }).then(() => {
+        redirectBasedOnRole(currentUser.role);
+    });
+}

@@ -1,213 +1,223 @@
-// Appointment Model (SQLite with sqlite3)
-const { getDB } = require('../config/database');
+// Appointment Model (Firebase Firestore)
+const { getDB, docToObject, snapshotToArray } = require('../config/database');
 
 class Appointment {
+    /**
+     * Get Firestore collection reference
+     */
+    static getCollection() {
+        const db = getDB();
+        return db.collection('appointments');
+    }
+
     /**
      * Generate queue number for today
      */
     static async generateQueueNumber() {
-        const db = getDB();
-        const today = new Date().toISOString().split('T')[0];
-        const result = await db.get(
-            `SELECT COUNT(*) as count FROM appointments 
-             WHERE DATE(appointmentDate) = ?`,
-            [today]
-        );
-        return result.count + 1;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const snapshot = await this.getCollection()
+            .where('appointmentDate', '>=', today)
+            .where('appointmentDate', '<', tomorrow)
+            .count()
+            .get();
+
+        return snapshot.data().count + 1;
     }
 
     /**
      * Find all appointments
      */
-    static async findAll(filters = {}) {
-        const db = getDB();
-        let sql = `
-            SELECT a.*, 
-                   p.patientId, p.nama as patientName, p.no_telp as patientPhone,
-                   d.doctorId, d.nama as doctorName
-            FROM appointments a
-            LEFT JOIN patients p ON a.patientId = p.id
-            LEFT JOIN doctors d ON a.doctorId = d.id
-            WHERE 1=1
-        `;
-        const params = [];
-
-        if (filters.status) {
-            sql += ' AND a.status = ?';
-            params.push(filters.status);
+    static async findAll(orderBy = 'appointmentDate', direction = 'desc') {
+        try {
+            const snapshot = await this.getCollection()
+                .orderBy(orderBy, direction)
+                .get();
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding all appointments:', error);
+            throw error;
         }
-
-        if (filters.date) {
-            sql += ' AND DATE(a.appointmentDate) = ?';
-            params.push(filters.date);
-        }
-
-        sql += ' ORDER BY a.queueNumber ASC, a.appointmentDate DESC';
-
-        const appointments = await db.all(sql, params);
-        
-        return appointments.map(appointment => {
-            if (appointment) {
-                appointment.needsPrescription = Boolean(appointment.needsPrescription);
-            }
-            return appointment;
-        });
     }
 
     /**
      * Find appointment by ID
      */
     static async findById(id) {
-        const db = getDB();
-        const appointment = await db.get(
-            `SELECT a.*, 
-                    p.patientId, p.nama as patientName, p.no_telp as patientPhone,
-                    d.doctorId, d.nama as doctorName
-             FROM appointments a
-             LEFT JOIN patients p ON a.patientId = p.id
-             LEFT JOIN doctors d ON a.doctorId = d.id
-             WHERE a.id = ?`,
-            [id]
-        );
-
-        if (appointment) {
-            appointment.needsPrescription = Boolean(appointment.needsPrescription);
+        try {
+            const doc = await this.getCollection().doc(id).get();
+            return docToObject(doc);
+        } catch (error) {
+            console.error('Error finding appointment by ID:', error);
+            throw error;
         }
+    }
 
-        return appointment;
+    /**
+     * Find appointments by patient ID
+     */
+    static async findByPatientId(patientId) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('patientId', '==', patientId)
+                .orderBy('appointmentDate', 'desc')
+                .get();
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding appointments by patient ID:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find today's appointments
+     */
+    static async findToday() {
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const snapshot = await this.getCollection()
+                .where('appointmentDate', '>=', today)
+                .where('appointmentDate', '<', tomorrow)
+                .orderBy('appointmentDate', 'asc')
+                .get();
+
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding today appointments:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find appointments by status
+     */
+    static async findByStatus(status) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('status', '==', status)
+                .orderBy('appointmentDate', 'desc')
+                .get();
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error finding appointments by status:', error);
+            throw error;
+        }
     }
 
     /**
      * Create new appointment
      */
     static async create(appointmentData) {
-        const db = getDB();
-        const { patientId, queueNumber } = appointmentData;
+        try {
+            const queueNumber = await this.generateQueueNumber();
 
-        const finalQueueNumber = queueNumber || await this.generateQueueNumber();
+            const newAppointment = {
+                queueNumber,
+                patientId: appointmentData.patientId,
+                patientName: appointmentData.patientName || null,
+                doctorId: appointmentData.doctorId || null,
+                doctorName: appointmentData.doctorName || null,
+                status: appointmentData.status || 'waiting',
+                appointmentDate: appointmentData.appointmentDate || new Date(),
+                tinggi_badan: appointmentData.tinggi_badan || null,
+                berat_badan: appointmentData.berat_badan || null,
+                tensi_darah: appointmentData.tensi_darah || null,
+                suhu_badan: appointmentData.suhu_badan || null,
+                keluhan_perawat: appointmentData.keluhan_perawat || null,
+                keluhan: appointmentData.keluhan || null,
+                hasil_pemeriksaan: appointmentData.hasil_pemeriksaan || null,
+                catatan_dokter: appointmentData.catatan_dokter || null,
+                needsPrescription: appointmentData.needsPrescription || false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
 
-        const result = await db.run(
-            `INSERT INTO appointments (queueNumber, patientId, status)
-             VALUES (?, ?, 'waiting')`,
-            [finalQueueNumber, patientId]
-        );
+            const docRef = await this.getCollection().add(newAppointment);
 
-        // Return result object with lastID
-        return result;
+            return {
+                id: docRef.id,
+                ...newAppointment
+            };
+        } catch (error) {
+            console.error('Error creating appointment:', error);
+            throw error;
+        }
     }
 
     /**
      * Update appointment
      */
     static async update(id, appointmentData) {
-        const db = getDB();
-        const fields = [];
-        const values = [];
+        try {
+            const updateData = { ...appointmentData };
+            updateData.updatedAt = new Date();
 
-        if (appointmentData.doctorId !== undefined) {
-            fields.push('doctorId = ?');
-            values.push(appointmentData.doctorId);
-        }
-        if (appointmentData.status !== undefined) {
-            fields.push('status = ?');
-            values.push(appointmentData.status);
-        }
-        if (appointmentData.queueNumber !== undefined) {
-            fields.push('queueNumber = ?');
-            values.push(appointmentData.queueNumber);
-        }
-
-        if (fields.length === 0) {
+            await this.getCollection().doc(id).update(updateData);
             return await this.findById(id);
+        } catch (error) {
+            console.error('Error updating appointment:', error);
+            throw error;
         }
-
-        fields.push('updatedAt = CURRENT_TIMESTAMP');
-        values.push(id);
-
-        const sql = `UPDATE appointments SET ${fields.join(', ')} WHERE id = ?`;
-        await db.run(sql, values);
-        return await this.findById(id);
     }
 
     /**
-     * Update vitals
+     * Update appointment status
      */
-    static async updateVitals(id, vitalsData) {
-        const db = getDB();
-        const fields = [];
-        const values = [];
-
-        if (vitalsData.tinggi_badan !== undefined) {
-            fields.push('tinggi_badan = ?');
-            values.push(vitalsData.tinggi_badan);
+    static async updateStatus(id, status) {
+        try {
+            await this.getCollection().doc(id).update({
+                status,
+                updatedAt: new Date()
+            });
+            return await this.findById(id);
+        } catch (error) {
+            console.error('Error updating appointment status:', error);
+            throw error;
         }
-        if (vitalsData.berat_badan !== undefined) {
-            fields.push('berat_badan = ?');
-            values.push(vitalsData.berat_badan);
-        }
-        if (vitalsData.tensi_darah !== undefined) {
-            fields.push('tensi_darah = ?');
-            values.push(vitalsData.tensi_darah);
-        }
-        if (vitalsData.suhu_badan !== undefined) {
-            fields.push('suhu_badan = ?');
-            values.push(vitalsData.suhu_badan);
-        }
-        if (vitalsData.keluhan_perawat !== undefined) {
-            fields.push('keluhan_perawat = ?');
-            values.push(vitalsData.keluhan_perawat);
-        }
-
-        fields.push('status = ?');
-        values.push('examining');
-        fields.push('updatedAt = CURRENT_TIMESTAMP');
-        values.push(id);
-
-        const sql = `UPDATE appointments SET ${fields.join(', ')} WHERE id = ?`;
-        await db.run(sql, values);
-        return await this.findById(id);
     }
 
     /**
-     * Update consultation
+     * Delete appointment
      */
-    static async updateConsultation(id, consultationData) {
-        const db = getDB();
-        const { doctorId, consultation } = consultationData;
-        const fields = [];
-        const values = [];
+    static async delete(id) {
+        try {
+            await this.getCollection().doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            return false;
+        }
+    }
 
-        if (doctorId !== undefined) {
-            fields.push('doctorId = ?');
-            values.push(doctorId);
-        }
-        if (consultation.keluhan !== undefined) {
-            fields.push('keluhan = ?');
-            values.push(consultation.keluhan);
-        }
-        if (consultation.hasil_pemeriksaan !== undefined) {
-            fields.push('hasil_pemeriksaan = ?');
-            values.push(consultation.hasil_pemeriksaan);
-        }
-        if (consultation.catatan_dokter !== undefined) {
-            fields.push('catatan_dokter = ?');
-            values.push(consultation.catatan_dokter);
-        }
-        if (consultation.needsPrescription !== undefined) {
-            fields.push('needsPrescription = ?');
-            values.push(consultation.needsPrescription ? 1 : 0);
-        }
+    /**
+     * Get queue statistics for today
+     */
+    static async getTodayStats() {
+        try {
+            const todayAppointments = await this.findToday();
 
-        // Update status based on needsPrescription
-        const status = consultation.needsPrescription ? 'waiting_prescription' : 'completed';
-        fields.push('status = ?');
-        values.push(status);
-        fields.push('updatedAt = CURRENT_TIMESTAMP');
-        values.push(id);
+            const stats = {
+                total: todayAppointments.length,
+                waiting: todayAppointments.filter(a => a.status === 'waiting').length,
+                examining: todayAppointments.filter(a => a.status === 'examining').length,
+                waiting_prescription: todayAppointments.filter(a => a.status === 'waiting_prescription').length,
+                completed: todayAppointments.filter(a => a.status === 'completed').length
+            };
 
-        const sql = `UPDATE appointments SET ${fields.join(', ')} WHERE id = ?`;
-        await db.run(sql, values);
-        return await this.findById(id);
+            return stats;
+        } catch (error) {
+            console.error('Error getting today stats:', error);
+            throw error;
+        }
     }
 }
 

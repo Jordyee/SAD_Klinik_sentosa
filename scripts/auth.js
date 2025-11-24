@@ -1,109 +1,172 @@
-// --- User Database Management (Simulated with localStorage) ---
+// Firebase Authentication Module
+// Handles user authentication, session management, and role-based access control
 
-// Initialize the user database if it doesn't exist
-function initializeUsers() {
-    if (!localStorage.getItem('klinikUsers')) {
-        const demoAccounts = [
-            { username: 'pasien', email: 'pasien@klinik.com', password: 'pasien123', role: 'pasien' },
-            { username: 'admin', email: 'admin@klinik.com', password: 'admin123', role: 'admin' },
-            { username: 'dokter', email: 'dokter@klinik.com', password: 'dokter123', role: 'dokter' },
-            { username: 'perawat', email: 'perawat@klinik.com', password: 'perawat123', role: 'perawat' },
-            { username: 'apotek', email: 'apotek@klinik.com', password: 'apotek123', role: 'apotek' },
-            { username: 'pemilik', email: 'pemilik@klinik.com', password: 'pemilik123', role: 'pemilik' }
-        ];
-        localStorage.setItem('klinikUsers', JSON.stringify(demoAccounts));
-    }
-}
+// ==============================================
+// FIREBASE AUTHENTICATION FUNCTIONS
+// ==============================================
 
-// Get all users from localStorage
-function getUsers() {
-    return JSON.parse(localStorage.getItem('klinikUsers')) || [];
-}
+// Login with email and password
+async function loginUser(email, password) {
+    try {
+        const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
 
-// Save users to localStorage
-function saveUsers(users) {
-    localStorage.setItem('klinikUsers', JSON.stringify(users));
-}
+        // Get user data from Firestore
+        const userDoc = await firebaseDB.collection('users').doc(user.uid).get();
 
-// Authenticate user
-function authenticateUser(username, password, role) {
-    const users = getUsers();
-    const user = users.find(u => u.username === username && u.password === password && u.role === role);
-    
-    if (user) {
-        // On successful login, create a session
+        if (!userDoc.exists) {
+            throw new Error('User data not found in database');
+        }
+
+        const userData = userDoc.data();
+
+        // Create session
         const userSession = {
-            username: user.username,
-            role: user.role,
+            uid: user.uid,
+            email: user.email,
+            username: userData.username,
+            role: userData.role,
+            fullName: userData.fullName,
             loginTime: new Date().toISOString()
         };
+
         localStorage.setItem('userSession', JSON.stringify(userSession));
-        return user;
+
+        return { success: true, user: userData };
+    } catch (error) {
+        console.error('Login error:', error);
+        let message = 'Login gagal. Periksa email dan password Anda.';
+
+        if (error.code === 'auth/user-not-found') {
+            message = 'Email tidak terdaftar.';
+        } else if (error.code === 'auth/wrong-password') {
+            message = 'Password salah.';
+        } else if (error.code === 'auth/invalid-email') {
+            message = 'Format email tidak valid.';
+        } else if (error.code === 'auth/user-disabled') {
+            message = 'Akun telah dinonaktifkan.';
+        }
+
+        return { success: false, message };
     }
-    
-    // If no exact match is found, return null.
-    return null;
 }
 
-// Find user by username or email
-function findUserByUsernameOrEmail(username, email) {
-    const users = getUsers();
-    return users.find(u => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase());
-}
+// Register new patient (public registration)
+async function registerPatient(username, email, password, fullName) {
+    try {
+        // Check if username already exists
+        const usersQuery = await firebaseDB.collection('users')
+            .where('username', '==', username)
+            .get();
 
-// Register a new user
-function registerUser(username, email, password) {
-    if (findUserByUsernameOrEmail(username, email)) {
-        return { success: false, message: 'Username atau email sudah terdaftar.' };
+        if (!usersQuery.empty) {
+            return { success: false, message: 'Username sudah terdaftar.' };
+        }
+
+        // Create Firebase Auth account
+        const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        // Create user document in Firestore
+        await firebaseDB.collection('users').doc(user.uid).set({
+            username: username,
+            email: email,
+            role: 'pasien',
+            fullName: fullName,
+            phone: null,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        return { success: true, message: 'Registrasi berhasil! Silakan login.' };
+    } catch (error) {
+        console.error('Registration error:', error);
+        let message = 'Registrasi gagal. Silakan coba lagi.';
+
+        if (error.code === 'auth/email-already-in-use') {
+            message = 'Email sudah terdaftar.';
+        } else if (error.code === 'auth/invalid-email') {
+            message = 'Format email tidak valid.';
+        } else if (error.code === 'auth/weak-password') {
+            message = 'Password terlalu lemah. Minimal 6 karakter.';
+        }
+
+        return { success: false, message };
     }
-    const users = getUsers();
-    const newUser = {
-        username,
-        email,
-        password,
-        role: 'pasien' // New registrations are always for patients
-    };
-    users.push(newUser);
-    saveUsers(users);
-    return { success: true, message: 'Registrasi berhasil! Silakan login.' };
 }
 
-// Create a new user (for Admins)
-function createUser(username, email, password, role) {
-    if (!['admin', 'dokter', 'perawat', 'apotek', 'pemilik'].includes(role)) {
+// Create new user (for admins - staff accounts)
+async function createUser(username, email, password, role, fullName) {
+    const validRoles = ['admin', 'dokter', 'perawat', 'apotek', 'pemilik'];
+
+    if (!validRoles.includes(role)) {
         return { success: false, message: 'Role tidak valid.' };
     }
-    if (findUserByUsernameOrEmail(username, email)) {
-        return { success: false, message: 'Username atau email sudah terdaftar.' };
+
+    try {
+        // Check if username already exists
+        const usersQuery = await firebaseDB.collection('users')
+            .where('username', '==', username)
+            .get();
+
+        if (!usersQuery.empty) {
+            return { success: false, message: 'Username sudah terdaftar.' };
+        }
+
+        // Create Firebase Auth account
+        const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        // Create user document in Firestore
+        await firebaseDB.collection('users').doc(user.uid).set({
+            username: username,
+            email: email,
+            role: role,
+            fullName: fullName,
+            phone: null,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        return { success: true, message: `Akun untuk role ${role} berhasil dibuat.` };
+    } catch (error) {
+        console.error('Create user error:', error);
+        let message = 'Gagal membuat akun. Silakan coba lagi.';
+
+        if (error.code === 'auth/email-already-in-use') {
+            message = 'Email sudah terdaftar.';
+        } else if (error.code === 'auth/invalid-email') {
+            message = 'Format email tidak valid.';
+        } else if (error.code === 'auth/weak-password') {
+            message = 'Password terlalu lemah. Minimal 6 karakter.';
+        }
+
+        return { success: false, message };
     }
-    const users = getUsers();
-    const newUser = { username, email, password, role };
-    users.push(newUser);
-    saveUsers(users);
-    return { success: true, message: `Akun untuk role ${role} berhasil dibuat.` };
 }
 
-// Remove a user (for Admins)
-function removeUser(username) {
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.username === username) {
-        return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri.' };
+// Logout function
+async function logout() {
+    try {
+        await firebaseAuth.signOut();
+        localStorage.removeItem('userSession');
+
+        const inPagesFolder = window.location.pathname.includes('/pages/');
+        if (inPagesFolder) {
+            window.location.href = 'login.html';
+        } else {
+            window.location.href = 'pages/login.html';
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
     }
-
-    let users = getUsers();
-    const initialLength = users.length;
-    users = users.filter(user => user.username !== username);
-
-    if (users.length === initialLength) {
-        return { success: false, message: 'Pengguna tidak ditemukan.' };
-    }
-
-    saveUsers(users);
-    return { success: true, message: `Pengguna ${username} berhasil dihapus.` };
 }
 
-
-// --- Session and UI Management ---
+// ==============================================
+// SESSION MANAGEMENT
+// ==============================================
 
 // Get current user session
 function getCurrentUser() {
@@ -125,27 +188,20 @@ function isLoggedIn() {
     return getCurrentUser() !== null;
 }
 
-// Logout function
-function logout() {
-    localStorage.removeItem('userSession');
-    const inPagesFolder = window.location.pathname.includes('/pages/');
-    if (inPagesFolder) {
-        window.location.href = 'login.html'; // Already in pages folder
-    } else {
-        window.location.href = 'pages/login.html'; // In root, need to go into pages
-    }
-}
+// ==============================================
+// ROLE-BASED ACCESS CONTROL
+// ==============================================
 
 // Check role and redirect if not authorized
 function requireRole(allowedRoles) {
     const currentRole = getCurrentRole();
-    
+
     if (!currentRole) {
         const inPagesFolder = window.location.pathname.includes('/pages/');
         window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
         return false;
     }
-    
+
     if (!allowedRoles.includes(currentRole)) {
         Swal.fire({
             title: 'Akses Ditolak!',
@@ -158,7 +214,7 @@ function requireRole(allowedRoles) {
         });
         return false;
     }
-    
+
     return true;
 }
 
@@ -167,7 +223,7 @@ function redirectBasedOnRole(role) {
     const inPagesFolder = window.location.pathname.includes('/pages/');
     const base = inPagesFolder ? '' : 'pages/';
 
-    switch(role) {
+    switch (role) {
         case 'pasien':
             window.location.href = inPagesFolder ? '../index.html' : 'index.html';
             break;
@@ -190,6 +246,10 @@ function redirectBasedOnRole(role) {
             window.location.href = inPagesFolder ? '../index.html' : 'index.html';
     }
 }
+
+// ==============================================
+// UI HELPER FUNCTIONS
+// ==============================================
 
 // Get role display name
 function getRoleDisplayName(role) {
@@ -223,16 +283,16 @@ function updateUIForRole() {
     if (!user) {
         const userIcon = document.querySelector('.user-icon');
         if (userIcon) {
-            userIcon.onclick = function() {
+            userIcon.onclick = function () {
                 const inPagesFolder = window.location.pathname.includes('/pages/');
                 window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
             };
         }
         return;
     }
-    
+
     const role = user.role;
-    
+
     const userIcon = document.querySelector('.user-icon');
     if (userIcon) {
         userIcon.innerHTML = `
@@ -241,7 +301,7 @@ function updateUIForRole() {
         `;
         userIcon.title = `Masuk sebagai: ${getRoleDisplayName(role)}`;
     }
-    
+
     hideUnauthorizedElements(role);
     setupUserIcon();
 }
@@ -256,10 +316,10 @@ function hideUnauthorizedElements(role) {
         'apotek': { show: ['pharmacy'], hide: ['register', 'examination', 'billing', 'reports'] },
         'pemilik': { show: ['reports'], hide: ['register', 'examination', 'pharmacy', 'billing'] }
     };
-    
+
     const permissions = rolePermissions[role];
     if (!permissions) return;
-    
+
     // Hide nav links
     permissions.hide.forEach(page => {
         const links = document.querySelectorAll(`a[href*="${page}"]`);
@@ -307,23 +367,26 @@ function setupUserIcon() {
     });
 
     // Logout button
-    document.getElementById('logoutButton').addEventListener('click', (e) => {
-        e.preventDefault();
-        Swal.fire({
-            title: 'Anda yakin ingin keluar?',
-            text: "Anda akan dikembalikan ke halaman login.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Ya, keluar!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                logout();
-            }
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Anda yakin ingin keluar?',
+                text: "Anda akan dikembalikan ke halaman login.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, keluar!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    logout();
+                }
+            });
         });
-    });
+    }
 
     // Hide dropdown when clicking outside
     window.addEventListener('click', (e) => {
@@ -333,12 +396,41 @@ function setupUserIcon() {
     });
 }
 
+// ==============================================
+// FIREBASE AUTH STATE LISTENER
+// ==============================================
+
+// Listen for auth state changes
+firebaseAuth.onAuthStateChanged(async (user) => {
+    if (user && !localStorage.getItem('userSession')) {
+        // User is signed in but session not set (e.g., page refresh)
+        try {
+            const userDoc = await firebaseDB.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const userSession = {
+                    uid: user.uid,
+                    email: user.email,
+                    username: userData.username,
+                    role: userData.role,
+                    fullName: userData.fullName,
+                    loginTime: new Date().toISOString()
+                };
+                localStorage.setItem('userSession', JSON.stringify(userSession));
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        }
+    }
+});
+
+// ==============================================
+// INITIALIZATION
+// ==============================================
+
 // Initialize on page load
 if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeUsers(); // Ensure users DB is initialized
+    document.addEventListener('DOMContentLoaded', function () {
         updateUIForRole();
     });
 }
-
-

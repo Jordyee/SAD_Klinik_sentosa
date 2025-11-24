@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    Module Pages Styling
    ============================================ */
 
@@ -6,25 +6,69 @@
     margin-top: 80px;
     padding: var(--spacing-xl) 0;
     min-height: calc(100vh - 80px);
-    background: var(--gray-50);
+    background: var(--gray-100);
 }
 
 .page-header {
     margin-bottom: var(--spacing-xl);
-    text-align: center;
+    text-align: left;
 }
 
 .page-header h1 {
-    font-size: var(--font-size-4xl);
+    font-size: var(--font-size-3xl);
     font-weight: 700;
     color: var(--gray-900);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
 }
 
 .page-header p {
     font-size: var(--font-size-lg);
     color: var(--gray-600);
+    max-width: 600px;
 }
+
+.dashboard-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.dashboard-card {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    border: 1px solid var(--gray-200);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-pink);
+}
+
+.dashboard-card h3 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.dashboard-card h3 i {
+    color: var(--primary-pink);
+}
+
+.dashboard-card p {
+    font-size: var(--font-size-base);
+    color: var(--gray-600);
+    line-height: 1.6;
+}
+
 
 /* Tabs */
 .tabs {
@@ -314,7 +358,7 @@
 
 .patient-card:hover {
     border-color: var(--primary-blue);
-    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 10px 30px rgba(235, 37, 235, 0.368);
     transform: translateY(-4px) scale(1.01);
     background: linear-gradient(to right, var(--white) 0%, #f8faff 100%);
 }
@@ -404,7 +448,7 @@
     background: var(--gray-200);
     border-color: var(--gray-400);
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(241, 126, 237, 0.69);
 }
 
 /* Queue Section */
@@ -549,11 +593,6 @@
     color: var(--white);
 }
 
-.status-waiting_prescription {
-    background: var(--secondary-blue);
-    color: var(--white);
-}
-
 .status-completed {
     background: var(--success);
     color: var(--white);
@@ -581,8 +620,6 @@
     max-width: 600px;
     box-shadow: var(--shadow-xl);
     animation: modalSlideIn 0.3s ease;
-    position: relative;
-    z-index: 2001;
 }
 
 @keyframes modalSlideIn {
@@ -617,10 +654,6 @@
     color: var(--gray-400);
     cursor: pointer;
     transition: color 0.3s ease;
-    padding: var(--spacing-xs);
-    line-height: 1;
-    z-index: 2002;
-    position: relative;
 }
 
 .modal-close:hover {
@@ -1414,7 +1447,7 @@
 }
 
 .role-option input[type="radio"]:checked + .role-card {
-    border-color: var(--primary-blue);
+    border-color: var(--primary-pink-dark);
     background: rgba(37, 99, 235, 0.1);
     box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
 }
@@ -1429,9 +1462,9 @@
 }
 
 .role-option:hover .role-card {
-    border-color: var(--primary-blue);
+    border-color: var(--primary-pink-dark);
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 4px 10px rgba(235, 37, 229, 0.626);
 }
 
 .btn-login {
@@ -1575,7 +1608,7 @@
 }
 
 .role-info-card ul li::before {
-    content: '✓';
+    content: 'âœ“';
     position: absolute;
     left: 0;
     color: var(--success);
@@ -1646,4 +1679,3 @@
         min-width: auto;
     }
 }
-

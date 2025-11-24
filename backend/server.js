@@ -18,9 +18,9 @@ if (envResult.error) {
     console.log('   Using default/fallback values\n');
 }
 
-// Connect to SQLite database
+// Connect to Firebase
 connectDB().catch(err => {
-    console.error('Failed to connect to database:', err);
+    console.error('Failed to connect to Firebase:', err);
     process.exit(1);
 });
 
@@ -53,18 +53,23 @@ app.use('/api/doctors', require('./routes/doctors'));
 
 // Health check
 app.get('/api/health', async (req, res) => {
-    const { getDB } = require('./config/database');
+    const { getDB, getAuth } = require('./config/database');
     try {
         const db = getDB();
-        const result = await db.get('SELECT 1 as test');
-        
+        const auth = getAuth();
+
+        // Simple check if Firebase services are available
+        const isDbAvailable = db !== null && db !== undefined;
+        const isAuthAvailable = auth !== null && auth !== undefined;
+
         res.status(200).json({
             success: true,
             message: 'Server is running',
             timestamp: new Date().toISOString(),
             database: {
-                status: 'connected',
-                type: 'SQLite'
+                status: isDbAvailable && isAuthAvailable ? 'connected' : 'disconnected',
+                type: 'Firebase Firestore',
+                authentication: 'Firebase Auth'
             }
         });
     } catch (error) {
@@ -98,4 +103,3 @@ process.on('unhandledRejection', (err, promise) => {
 });
 
 module.exports = app;
-

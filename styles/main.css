@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    Klinik Sentosa - Modern Healthcare UI
    Styling inspired by Sunrise Healthcare Platform
    ============================================ */
@@ -11,34 +11,36 @@
 }
 
 :root {
-    /* Color Palette - Blue & White Theme (Enhanced) */
-    --primary-blue: #2563eb;
-    --primary-blue-dark: #1e40af;
-    --primary-blue-light: #3b82f6;
-    --secondary-blue: #60a5fa;
-    --accent-blue: #93c5fd;
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-blue: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
-    --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    /* Color Palette - Pink & White Theme */
+    --primary-pink: #F7CAC9; /* Soft pastel pink */
+    --primary-pink-dark: #F19D9D; /* Darker pink for hover/active */
+    --primary-pink-light: #FCE6E6; /* Lighter pink accent */
+    --secondary-blue: #A2D9F7; /* Soft blue accent */
+    --accent-gray: #F0F0F0; /* Light gray for borders/backgrounds */
+    --gradient-primary: linear-gradient(135deg, #F7CAC9 0%, #F19D9D 100%);
+    --gradient-pink: linear-gradient(135deg, #F7CAC9 0%, #F19D9D 50%, #FCE6E6 100%);
+    --gradient-hero: linear-gradient(135deg, #F7CAC9 0%, #F19D9D 50%, #A2D9F7 100%);
     
     --white: #ffffff;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
-    --gray-900: #111827;
+    --gray-50: #fcfcfc;
+    --gray-100: #f8f8f8;
+    --gray-200: #e0e0e0;
+    --gray-300: #cccccc;
+    --gray-400: #aaaaaa;
+    --gray-500: #888888;
+    --gray-600: #666666;
+    --gray-700: #444444;
+    --gray-800: #222222;
+    --gray-900: #111111;
     
     --success: #10b981;
     --warning: #f59e0b;
     --error: #ef4444;
+    --pastel-purple: #D7BDE2; /* New pastel purple for hover effects */
     
     /* Typography */
-    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-primary: 'Poppins', sans-serif;
+    --font-heading: 'Montserrat', sans-serif;
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -78,6 +80,11 @@ body {
     line-height: 1.6;
     background-color: var(--white);
     overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    color: var(--gray-900);
 }
 
 .container {
@@ -138,15 +145,11 @@ body {
 }
 
 .nav-link:hover {
-    color: var(--primary-blue);
-}
-
-.nav-link:hover::after {
-    width: 100%;
+    color: var(--primary-pink);
 }
 
 .nav-link.active {
-    color: var(--primary-blue);
+    color: var(--primary-pink);
 }
 
 .nav-link.active::after {
@@ -165,7 +168,7 @@ body {
     gap: var(--spacing-xs);
     font-size: var(--font-size-xl);
     font-weight: 700;
-    color: var(--primary-blue);
+    color: var(--primary-pink);
 }
 
 .logo i {
@@ -196,7 +199,7 @@ body {
 
 .search-box input:focus {
     outline: none;
-    border-color: var(--primary-blue);
+    border-color: var(--primary-pink);
 }
 
 .search-box i {
@@ -210,7 +213,7 @@ body {
     align-items: center;
     gap: var(--spacing-xs);
     padding: var(--spacing-xs) var(--spacing-md);
-    background: var(--gradient-blue);
+    background: var(--gradient-pink);
     color: var(--white);
     border: none;
     border-radius: var(--radius-md);
@@ -218,7 +221,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 15px rgba(247, 202, 201, 0.3); /* Using primary-pink's rgba */
     position: relative;
     overflow: hidden;
 }
@@ -308,7 +311,7 @@ body {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(37, 99, 235, 0.1);
+    background: rgba(247, 202, 201, 0.1); /* Using primary-pink's rgba */
     transform: translate(-50%, -50%);
     transition: width 0.3s, height 0.3s;
 }
@@ -319,7 +322,7 @@ body {
 }
 
 .user-icon:hover {
-    color: var(--primary-blue);
+    color: var(--primary-pink);
     transform: scale(1.1);
 }
 
@@ -378,7 +381,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(37, 99, 235, 0.1);
+    background: rgba(247, 202, 201, 0.1); /* Using primary-pink's rgba */
     z-index: -1;
 }
 
@@ -411,14 +414,14 @@ body {
     gap: var(--spacing-sm);
     padding: var(--spacing-md) var(--spacing-xl);
     background: var(--white);
-    color: var(--primary-blue);
+    color: var(--primary-pink); /* Changed to primary-pink */
     border: none;
     border-radius: var(--radius-lg);
     font-size: var(--font-size-lg);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 10px 30px rgba(247, 202, 201, 0.3); /* Using primary-pink's rgba */
     position: relative;
     overflow: hidden;
 }
@@ -431,7 +434,7 @@ body {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(37, 99, 235, 0.1);
+    background: rgba(247, 202, 201, 0.1); /* Using primary-pink's rgba */
     transform: translate(-50%, -50%);
     transition: width 0.6s, height 0.6s;
 }
@@ -443,7 +446,7 @@ body {
 
 .btn-hero:hover {
     transform: translateY(-4px) scale(1.05);
-    box-shadow: 0 15px 40px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 15px 40px rgba(247, 202, 201, 0.4); /* Using primary-pink's rgba */
 }
 
 .btn-hero:active {
@@ -477,7 +480,7 @@ body {
     width: 40px;
     height: 40px;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    background: linear-gradient(135deg, var(--primary-pink), var(--secondary-blue));
     border: 2px solid var(--white);
     margin-left: -10px;
 }
@@ -611,7 +614,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-xs);
-    color: var(--primary-blue);
+    color: var(--primary-pink); /* Changed to primary-pink */
     text-decoration: none;
     font-size: var(--font-size-sm);
     font-weight: 600;
@@ -661,7 +664,7 @@ body {
     align-items: center;
     gap: var(--spacing-xs);
     padding: var(--spacing-sm) var(--spacing-lg);
-    background: var(--gradient-blue);
+    background: var(--gradient-pink); /* Changed to gradient-pink */
     color: var(--white);
     border: none;
     border-radius: var(--radius-md);
@@ -670,7 +673,7 @@ body {
     cursor: pointer;
     transition: all 0.3s ease;
     width: fit-content;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 15px rgba(247, 202, 201, 0.3); /* Using primary-pink's rgba */
     position: relative;
     overflow: hidden;
 }
@@ -695,7 +698,7 @@ body {
 
 .btn-secondary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 6px 20px rgba(247, 202, 201, 0.4); /* Using primary-pink's rgba */
 }
 
 .btn-secondary:active {
@@ -725,7 +728,7 @@ body {
     right: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(247, 202, 201, 0.1) 0%, transparent 70%); /* Using primary-pink's rgba */
     opacity: 0;
     transition: opacity 0.4s ease;
 }
@@ -736,13 +739,13 @@ body {
 
 .facility-card:hover {
     transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 20px 40px rgba(247, 202, 201, 0.2); /* Using primary-pink's rgba */
 }
 
 .facility-image {
     width: 100%;
     height: 200px;
-    background: var(--gradient-blue);
+    background: var(--gradient-pink); /* Changed to gradient-pink */
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
@@ -775,7 +778,7 @@ body {
 
 .facility-card:hover .facility-image {
     transform: scale(1.05);
-    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 10px 30px rgba(247, 202, 201, 0.3); /* Using primary-pink's rgba */
 }
 
 .facility-image i {
@@ -813,7 +816,7 @@ body {
 }
 
 .location i {
-    color: var(--primary-blue);
+    color: var(--primary-pink); /* Changed to primary-pink */
 }
 
 /* ============================================
@@ -875,8 +878,8 @@ body {
 .btn-view-all {
     padding: var(--spacing-xs) var(--spacing-md);
     background: var(--white);
-    color: var(--primary-blue);
-    border: 1px solid var(--primary-blue);
+    color: var(--primary-pink); /* Changed to primary-pink */
+    border: 1px solid var(--primary-pink); /* Changed to primary-pink */
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     font-weight: 600;
@@ -885,7 +888,7 @@ body {
 }
 
 .btn-view-all:hover {
-    background: var(--primary-blue);
+    background: var(--primary-pink); /* Changed to primary-pink */
     color: var(--white);
 }
 
@@ -914,7 +917,7 @@ body {
     left: 0;
     width: 100%;
     height: 4px;
-    background: var(--gradient-blue);
+    background: var(--gradient-pink); /* Changed to gradient-pink */
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.4s ease;
@@ -926,27 +929,27 @@ body {
 
 .service-card:hover {
     transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(37, 99, 235, 0.15);
-    border-color: var(--primary-blue);
-    background: linear-gradient(to bottom, var(--white) 0%, #f8faff 100%);
+    box-shadow: 0 20px 40px rgba(247, 202, 201, 0.15); /* Using primary-pink's rgba */
+    border-color: var(--primary-pink); /* Changed to primary-pink */
+    background: linear-gradient(to bottom, var(--white) 0%, var(--gray-50) 100%); /* Adjusted for new gray-50 */
 }
 
 .service-icon {
     width: 60px;
     height: 60px;
-    background: var(--gradient-blue);
+    background: var(--gradient-pink); /* Changed to gradient-pink */
     border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: var(--spacing-md);
     transition: all 0.4s ease;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 15px rgba(247, 202, 201, 0.3); /* Using primary-pink's rgba */
 }
 
 .service-card:hover .service-icon {
     transform: rotate(360deg) scale(1.1);
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 8px 25px rgba(247, 202, 201, 0.4); /* Using primary-pink's rgba */
 }
 
 .service-icon i {
@@ -987,7 +990,7 @@ body {
    ============================================ */
 .facilities-section {
     padding: var(--spacing-2xl) 0;
-    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+    background: linear-gradient(135deg, var(--primary-pink) 0%, var(--primary-pink-light) 100%); /* Changed to primary-pink and primary-pink-light */
     color: var(--white);
     text-align: center;
 }
@@ -1024,7 +1027,7 @@ body {
 
 .quote-icon {
     font-size: var(--font-size-4xl);
-    color: var(--primary-blue);
+    color: var(--primary-pink); /* Changed to primary-pink */
     margin-bottom: var(--spacing-md);
 }
 
@@ -1047,7 +1050,7 @@ body {
     width: 60px;
     height: 60px;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    background: linear-gradient(135deg, var(--primary-pink), var(--secondary-blue)); /* Changed to primary-pink */
 }
 
 .author-info h4 {
@@ -1117,7 +1120,7 @@ body {
 }
 
 .footer-social a:hover {
-    background: var(--primary-blue);
+    background: var(--primary-pink); /* Changed to primary-pink */
 }
 
 .footer-bottom {
@@ -1223,4 +1226,3 @@ body {
         font-size: var(--font-size-2xl);
     }
 }
-

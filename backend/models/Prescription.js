@@ -1,213 +1,324 @@
-// Prescription Model (SQLite with sqlite3)
-const { getDB } = require('../config/database');
+// Prescription Model (Firebase Firestore)
+const { getDB, docToObject, snapshotToArray, admin } = require('../config/database');
 
 class Prescription {
+    /**
+     * Get Firestore collection reference
+     */
+    static getCollection() {
+        const db = getDB();
+        return db.collection('prescriptions');
+    }
+
     /**
      * Generate prescription ID
      */
     static async generatePrescriptionId() {
-        const db = getDB();
-        const result = await db.get('SELECT COUNT(*) as count FROM prescriptions');
-        return 'PR' + String(result.count + 1).padStart(3, '0');
+        const snapshot = await this.getCollection().count().get();
+        const count = snapshot.data().count;
+        return 'RX' + String(count + 1).padStart(4, '0');
     }
 
     /**
      * Find all prescriptions
      */
-    static async findAll(filters = {}) {
-        const db = getDB();
-        let sql = `
-            SELECT pr.*,
-                   p.patientId, p.nama as patientName, p.no_telp as patientPhone,
-                   d.doctorId, d.nama as doctorName
-            FROM prescriptions pr
-            LEFT JOIN patients p ON pr.patientId = p.id
-            LEFT JOIN doctors d ON pr.doctorId = d.id
-            WHERE 1=1
-        `;
-        const params = [];
+    static async findAll(orderBy = 'createdAt', direction = 'desc') {
+        try {
+            const snapshot = await this.getCollection()
+                .orderBy(orderBy, direction)
+                .get();
 
-        if (filters.status) {
-            sql += ' AND pr.status = ?';
-            params.push(filters.status);
+            const prescriptions = [];
+            for (const doc of snapshot.docs) {
+                const prescription = docToObject(doc);
+                // Get items subcollection
+                prescription.items = await this.getItems(doc.id);
+                prescriptions.push(prescription);
+            }
+
+            return prescriptions;
+        } catch (error) {
+            console.error('Error finding all prescriptions:', error);
+            throw error;
         }
-
-        if (filters.patientId) {
-            sql += ' AND pr.patientId = ?';
-            params.push(filters.patientId);
-        }
-
-        sql += ' ORDER BY pr.createdAt DESC';
-
-        const prescriptions = await db.all(sql, params);
-        
-        // Load items for each prescription
-        const prescriptionsWithItems = [];
-        for (const prescription of prescriptions) {
-            prescription.items = await this.getItems(prescription.id);
-            prescriptionsWithItems.push(prescription);
-        }
-        
-        return prescriptionsWithItems;
     }
 
     /**
      * Find prescription by ID
      */
     static async findById(id) {
-        const db = getDB();
-        const prescription = await db.get(
-            `SELECT pr.*,
-                    p.patientId, p.nama as patientName, p.no_telp as patientPhone,
-                    d.doctorId, d.nama as doctorName
-             FROM prescriptions pr
-             LEFT JOIN patients p ON pr.patientId = p.id
-             LEFT JOIN doctors d ON pr.doctorId = d.id
-             WHERE pr.id = ?`,
-            [id]
-        );
+        try {
+            const doc = await this.getCollection().doc(id).get();
+            const prescription = docToObject(doc);
 
-        if (prescription) {
-            prescription.items = await this.getItems(id);
+            if (prescription) {
+                prescription.items = await this.getItems(id);
+            }
+
+            return prescription;
+        } catch (error) {
+            console.error('Error finding prescription by ID:', error);
+            throw error;
         }
-
-        return prescription;
     }
 
     /**
-     * Get prescription items
+     * Find prescription by prescriptionId (custom field)
+     */
+    static async findByPrescriptionId(prescriptionId) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('prescriptionId', '==', prescriptionId)
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) return null;
+
+            const prescription = docToObject(snapshot.docs[0]);
+            if (prescription) {
+                prescription.items = await this.getItems(snapshot.docs[0].id);
+            }
+
+            return prescription;
+        } catch (error) {
+            console.error('Error finding prescription by prescriptionId:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find prescriptions by patient ID
+     */
+    static async findByPatientId(patientId) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('patientId', '==', patientId)
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            const prescriptions = [];
+            for (const doc of snapshot.docs) {
+                const prescription = docToObject(doc);
+                prescription.items = await this.getItems(doc.id);
+                prescriptions.push(prescription);
+            }
+
+            return prescriptions;
+        } catch (error) {
+            console.error('Error finding prescriptions by patient ID:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find prescriptions by status
+     */
+    static async findByStatus(status) {
+        try {
+            const snapshot = await this.getCollection()
+                .where('status', '==', status)
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            const prescriptions = [];
+            for (const doc of snapshot.docs) {
+                const prescription = docToObject(doc);
+                prescription.items = await this.getItems(doc.id);
+                prescriptions.push(prescription);
+            }
+
+            return prescriptions;
+        } catch (error) {
+            console.error('Error finding prescriptions by status:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get prescription items (subcollection)
      */
     static async getItems(prescriptionId) {
-        const db = getDB();
-        return await db.all(
-            `SELECT pi.*, m.medicineId, m.nama as medicineFullName, m.stok, m.harga
-             FROM prescription_items pi
-             LEFT JOIN medicines m ON pi.medicineId = m.id
-             WHERE pi.prescriptionId = ?`,
-            [prescriptionId]
-        );
+        try {
+            const snapshot = await this.getCollection()
+                .doc(prescriptionId)
+                .collection('items')
+                .get();
+
+            return snapshotToArray(snapshot);
+        } catch (error) {
+            console.error('Error getting prescription items:', error);
+            return [];
+        }
     }
 
     /**
-     * Create new prescription
+     * Create new prescription with items
      */
     static async create(prescriptionData) {
         const db = getDB();
-        const { patientId, doctorId, appointmentId, items = [], notes } = prescriptionData;
 
-        const prescriptionId = await this.generatePrescriptionId();
+        try {
+            const prescriptionId = await this.generatePrescriptionId();
 
-        // Insert prescription
-        const result = await db.run(
-            `INSERT INTO prescriptions (prescriptionId, patientId, doctorId, appointmentId, notes, status)
-             VALUES (?, ?, ?, ?, ?, 'pending')`,
-            [prescriptionId, patientId, doctorId || null, appointmentId || null, notes || null]
-        );
+            const newPrescription = {
+                prescriptionId,
+                patientId: prescriptionData.patientId,
+                patientName: prescriptionData.patientName || null,
+                doctorId: prescriptionData.doctorId || null,
+                doctorName: prescriptionData.doctorName || null,
+                appointmentId: prescriptionData.appointmentId || null,
+                notes: prescriptionData.notes || '',
+                status: prescriptionData.status || 'pending',
+                processedAt: null,
+                processedBy: null,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
 
-        const prescriptionDbId = result.lastID;
+            const docRef = await this.getCollection().add(newPrescription);
 
-        // Insert prescription items
-        if (items.length > 0) {
-            for (const item of items) {
-                await db.run(
-                    `INSERT INTO prescription_items (prescriptionId, medicineId, medicineName, quantity, dosage, instructions)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [prescriptionDbId, item.medicineId || null, item.medicineName, item.quantity, item.dosage || null, item.instructions || null]
-                );
+            // Add prescription items to subcollection
+            if (prescriptionData.items && prescriptionData.items.length > 0) {
+                const batch = db.batch();
+
+                prescriptionData.items.forEach(item => {
+                    const itemRef = docRef.collection('items').doc();
+                    batch.set(itemRef, {
+                        medicineId: item.medicineId || null,
+                        medicineName: item.medicineName,
+                        quantity: parseInt(item.quantity),
+                        dosage: item.dosage || '',
+                        instructions: item.instructions || '',
+                        createdAt: new Date()
+                    });
+                });
+
+                await batch.commit();
             }
-        }
 
-        // Update appointment status if provided
-        if (appointmentId) {
-            await db.run('UPDATE appointments SET status = ? WHERE id = ?', ['waiting_prescription', appointmentId]);
+            return {
+                id: docRef.id,
+                ...newPrescription,
+                items: prescriptionData.items || []
+            };
+        } catch (error) {
+            console.error('Error creating prescription:', error);
+            throw error;
         }
-
-        // Return result object with lastID
-        return result;
     }
 
     /**
      * Update prescription
      */
     static async update(id, prescriptionData) {
-        const db = getDB();
-        const fields = [];
-        const values = [];
+        try {
+            const updateData = { ...prescriptionData };
+            delete updateData.items; // Don't update items here
+            updateData.updatedAt = new Date();
 
-        if (prescriptionData.doctorId !== undefined) {
-            fields.push('doctorId = ?');
-            values.push(prescriptionData.doctorId);
-        }
-        if (prescriptionData.appointmentId !== undefined) {
-            fields.push('appointmentId = ?');
-            values.push(prescriptionData.appointmentId);
-        }
-        if (prescriptionData.notes !== undefined) {
-            fields.push('notes = ?');
-            values.push(prescriptionData.notes);
-        }
-        if (prescriptionData.status !== undefined) {
-            fields.push('status = ?');
-            values.push(prescriptionData.status);
-        }
-
-        if (fields.length === 0) {
+            await this.getCollection().doc(id).update(updateData);
             return await this.findById(id);
+        } catch (error) {
+            console.error('Error updating prescription:', error);
+            throw error;
         }
-
-        fields.push('updatedAt = CURRENT_TIMESTAMP');
-        values.push(id);
-
-        const sql = `UPDATE prescriptions SET ${fields.join(', ')} WHERE id = ?`;
-        await db.run(sql, values);
-        return await this.findById(id);
     }
 
     /**
-     * Process prescription (pharmacy)
+     * Update prescription status
      */
-    static async process(id, processedBy) {
-        const db = getDB();
-        const prescription = await this.findById(id);
+    static async updateStatus(id, status, processedBy = null) {
+        try {
+            const updateData = {
+                status,
+                updatedAt: new Date()
+            };
 
-        if (!prescription) {
-            throw new Error('Prescription not found');
-        }
-
-        if (prescription.status !== 'pending') {
-            throw new Error('Prescription already processed');
-        }
-
-        // Check stock and deduct
-        const Medicine = require('./Medicine');
-        for (const item of prescription.items) {
-            if (item.medicineId) {
-                const medicine = await Medicine.findById(item.medicineId);
-                if (!medicine) {
-                    throw new Error(`Medicine ${item.medicineName} not found`);
-                }
-                if (medicine.stok < item.quantity) {
-                    throw new Error(`Insufficient stock for ${item.medicineName}. Available: ${medicine.stok}, Required: ${item.quantity}`);
-                }
-                // Deduct stock
-                await Medicine.updateStock(item.medicineId, item.quantity, 'subtract');
+            if (status === 'processed' && processedBy) {
+                updateData.processedAt = new Date();
+                updateData.processedBy = processedBy;
             }
+
+            await this.getCollection().doc(id).update(updateData);
+            return await this.findById(id);
+        } catch (error) {
+            console.error('Error updating prescription status:', error);
+            throw error;
         }
+    }
 
-        // Update prescription status
-        await db.run(
-            `UPDATE prescriptions 
-             SET status = 'processed', processedAt = CURRENT_TIMESTAMP, processedBy = ?, updatedAt = CURRENT_TIMESTAMP
-             WHERE id = ?`,
-            [processedBy, id]
-        );
+    /**
+     * Delete prescription (and its items)
+     */
+    static async delete(id) {
+        const db = getDB();
 
-        // Update appointment status if exists
-        if (prescription.appointmentId) {
-            await db.run('UPDATE appointments SET status = ? WHERE id = ?', ['completed', prescription.appointmentId]);
+        try {
+            // Delete items first
+            const itemsSnapshot = await this.getCollection()
+                .doc(id)
+                .collection('items')
+                .get();
+
+            const batch = db.batch();
+            itemsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            // Delete prescription
+            batch.delete(this.getCollection().doc(id));
+
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error('Error deleting prescription:', error);
+            return false;
         }
+    }
 
-        return await this.findById(id);
+    /**
+     * Add item to prescription
+     */
+    static async addItem(prescriptionId, itemData) {
+        try {
+            const itemRef = await this.getCollection()
+                .doc(prescriptionId)
+                .collection('items')
+                .add({
+                    medicineId: itemData.medicineId || null,
+                    medicineName: itemData.medicineName,
+                    quantity: parseInt(itemData.quantity),
+                    dosage: itemData.dosage || '',
+                    instructions: itemData.instructions || '',
+                    createdAt: new Date()
+                });
+
+            return {
+                id: itemRef.id,
+                ...itemData
+            };
+        } catch (error) {
+            console.error('Error adding prescription item:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Remove item from prescription
+     */
+    static async removeItem(prescriptionId, itemId) {
+        try {
+            await this.getCollection()
+                .doc(prescriptionId)
+                .collection('items')
+                .doc(itemId)
+                .delete();
+
+            return true;
+        } catch (error) {
+            console.error('Error removing prescription item:', error);
+            return false;
+        }
     }
 }
 

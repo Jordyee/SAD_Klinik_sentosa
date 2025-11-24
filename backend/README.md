@@ -1,280 +1,288 @@
-# Klinik Sentosa Backend API
+# Backend Setup - Klinik Sentosa (Firebase)
 
-Backend API untuk Sistem Informasi Klinik Sentosa menggunakan Node.js, Express.js, dan MongoDB.
+Backend API untuk Sistem Informasi Klinik Sentosa menggunakan **Firebase Firestore** dan **Firebase Authentication**.
 
-## Teknologi
+## 🔥 Teknologi Stack
 
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **MongoDB** - Database
-- **Mongoose** - ODM
-- **JWT** - Authentication
-- **bcryptjs** - Password hashing
+- **Runtime**: Node.js with Express.js
+- **Database**: Firebase Firestore (NoSQL Cloud Database)
+- **Authentication**: Firebase Authentication
+- **API**: RESTful API
+- **Validation**: express-validator
+- **Security**: CORS, JWT (via Firebase Auth)
 
-## Fitur
+## 📋 Prasyarat
 
-- ✅ Patient Management (CRUD)
-- ✅ Medicine Inventory Management
-- ✅ Appointment/Queue System
-- ✅ Prescription System
-- ✅ Doctor Management
-- ✅ JWT Authentication
-- ✅ Role-based Access Control
+- Node.js >= 14.x
+- npm >= 6.x
+- Akun Firebase (Free tier sudah cukup untuk development)
 
-## Instalasi
+## 🚀 Setup Firebase
+
+Sebelum menjalankan backend, Anda harus setup Firebase project terlebih dahulu:
+
+**📚 Ikuti panduan lengkap di: [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)**
+
+Ringkasan langkah:
+1. Buat Firebase project di [Firebase Console](https://console.firebase.google.com)
+2. Enable Firebase Authentication (Email/Password)
+3. Enable Cloud Firestore Database
+4. Download service account key → simpan sebagai `config/firebase-config.json`
+5. Dapatkan Firebase web config untuk frontend
+
+## 📦 Instalasi
 
 ### 1. Install Dependencies
 
 ```bash
+cd backend
 npm install
 ```
 
 ### 2. Setup Environment Variables
 
-**Automatic Setup (Recommended):**
-The server will automatically create a `.env` file with default values if it doesn't exist when you first run it.
+File `.env` sudah ada, tapi boleh disesuaikan jika perlu:
 
-**Manual Setup:**
-If you want to customize, create `.env` file manually:
-
-```bash
-# Create .env file
-touch .env  # Mac/Linux
-# or create manually on Windows
-```
-
-Edit `.env`:
-```
+```env
+# Server Configuration
 PORT=3000
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/klinik_sentosa
-JWT_SECRET=your_super_secret_jwt_key
-JWT_EXPIRE=7d
-CORS_ORIGIN=http://localhost:5500
+
+# CORS Origins (comma-separated)
+CORS_ORIGIN=http://localhost:5500,http://127.0.0.1:5500
+
+# Firebase Configuration
+FIREBASE_CONFIG_PATH=./config/firebase-config.json
 ```
 
-**Note:** 
-- If `MONGODB_URI` is not set, the server will use default: `mongodb://localhost:27017/klinik_sentosa`
-- For MongoDB Atlas: `mongodb+srv://username:password@cluster.mongodb.net/klinik_sentosa`
+### 3. Dapatkan Firebase Service Account Key
 
-### 3. Pastikan MongoDB Running
+- Ikuti instruksi di [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) section 5
+- Download file JSON dan simpan ke `backend/config/firebase-config.json`
+- **PENTING**: File ini sudah di-gitignore, jangan di-commit!
 
-Pastikan MongoDB sudah terinstall dan running:
+## 🗄️ Migrasi Data Users
+
+Jika Anda punya data users di SQLite database lama, migrate ke Firebase:
 
 ```bash
-# Windows
-net start MongoDB
-
-# Mac/Linux
-sudo systemctl start mongod
+npm run migrate-users
 # atau
-mongod
+node scripts/migrate-users.js
 ```
 
-### 4. Jalankan Server
+Script ini akan:
+- Membaca semua users dari SQLite `klinik.db`
+- Membuat Firebase Auth accounts untuk setiap user
+- Simpan additional data (role, fullName) ke Firestore
+- Set default password untuk setiap user
 
-**Development mode (dengan auto-reload):**
+**⚠️ Default Passwords:**
+- Format: `Klinik[Role]123!`
+- Contoh:
+  - admin → `KlinikAdmin123!`
+  - dokter → `KlinikDokter123!`
+  - perawat → `KlinikPerawat123!`
+
+Users harus reset password saat first login!
+
+## ▶️ Menjalankan Server
+
+### Development Mode (dengan auto-reload)
+
 ```bash
 npm run dev
 ```
 
-**Production mode:**
+### Production Mode
+
 ```bash
 npm start
 ```
 
 Server akan berjalan di `http://localhost:3000`
 
-## API Endpoints
+## ✅ Verifikasi Setup
+
+### 1. Test Health Endpoint
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Response seharusnya:
+```json
+{
+  "success": true,
+  "message": "Server is running",
+  "timestamp": "2025-11-24T...",
+  "database": {
+    "status": "connected",
+    "type": "Firebase Firestore",
+    "authentication": "Firebase Auth"
+  }
+}
+```
+
+### 2. Check Firebase Console
+
+- Buka [Firebase Console](https://console.firebase.google.com)
+- Pilih project Anda
+- Check **Authentication** → Seharusnya ada users (jika sudah migrate)
+- Check **Firestore Database** → Seharusnya ada collection `users`
+
+## 📡 API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register user
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user (Protected)
+- `POST /api/auth/register` - Register user baru
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user info
 
 ### Patients
-- `GET /api/patients` - Get all patients (Protected)
-- `GET /api/patients/:id` - Get single patient (Protected)
-- `POST /api/patients` - Create patient (Protected)
-- `PUT /api/patients/:id` - Update patient (Protected)
-- `DELETE /api/patients/:id` - Delete patient (Admin only)
-- `GET /api/patients/search?q=query` - Search patients (Protected)
+- `GET /api/patients` - Get all patients
+- `GET /api/patients/:id` - Get patient by ID
+- `POST /api/patients` - Create new patient
+- `PUT /api/patients/:id` - Update patient
+- `DELETE /api/patients/:id` - Delete patient
+- `GET /api/patients/search?q=` - Search patients
 
 ### Medicines
-- `GET /api/medicines` - Get all medicines (Protected)
-- `GET /api/medicines/:id` - Get single medicine (Protected)
-- `POST /api/medicines` - Create medicine (Admin, Apotek)
-- `PUT /api/medicines/:id` - Update medicine (Admin, Apotek)
-- `DELETE /api/medicines/:id` - Delete medicine (Admin, Apotek)
-- `PATCH /api/medicines/:id/stock` - Update stock (Admin, Apotek)
+- `GET /api/medicines` - Get all medicines
+- `GET /api/medicines/:id` - Get medicine by ID
+- `POST /api/medicines` - Create new medicine
+- `PUT /api/medicines/:id` - Update medicine
+- `PUT /api/medicines/:id/stock` - Update stock
+- `DELETE /api/medicines/:id` - Delete medicine (soft)
 
 ### Appointments
-- `GET /api/appointments` - Get all appointments (Protected)
-- `GET /api/appointments/:id` - Get single appointment (Protected)
-- `POST /api/appointments` - Create appointment (Protected)
-- `PUT /api/appointments/:id` - Update appointment (Protected)
-- `PATCH /api/appointments/:id/vitals` - Update vitals (Perawat, Admin)
-- `PATCH /api/appointments/:id/consultation` - Update consultation (Dokter, Admin)
+- `GET /api/appointments` - Get all appointments
+- `GET /api/appointments/:id` - Get appointment by ID
+- `GET /api/appointments/today` - Get today's queue
+- `POST /api/appointments` - Create new appointment
+- `PUT /api/appointments/:id` - Update appointment
+- `DELETE /api/appointments/:id` - Delete appointment
 
 ### Prescriptions
-- `GET /api/prescriptions` - Get all prescriptions (Protected)
-- `GET /api/prescriptions/:id` - Get single prescription (Protected)
-- `POST /api/prescriptions` - Create prescription (Dokter, Admin)
-- `PUT /api/prescriptions/:id` - Update prescription (Dokter, Admin)
-- `PATCH /api/prescriptions/:id/process` - Process prescription (Apotek, Admin)
+- `GET /api/prescriptions` - Get all prescriptions
+- `GET /api/prescriptions/:id` - Get prescription by ID
+- `GET /api/prescriptions/pending` - Get pending prescriptions
+- `POST /api/prescriptions` - Create new prescription
+- `PUT /api/prescriptions/:id` - Update prescription
+- `DELETE /api/prescriptions/:id` - Delete prescription
 
 ### Doctors
-- `GET /api/doctors` - Get all doctors (Protected)
-- `GET /api/doctors/:id` - Get single doctor (Protected)
-- `POST /api/doctors` - Create doctor (Admin)
-- `PUT /api/doctors/:id` - Update doctor (Admin)
-- `DELETE /api/doctors/:id` - Delete doctor (Admin)
+- `GET /api/doctors` - Get all doctors
+- `GET /api/doctors/:id` - Get doctor by ID
+- `POST /api/doctors` - Create new doctor
+- `PUT /api/doctors/:id` - Update doctor
+- `DELETE /api/doctors/:id` - Delete doctor (soft)
 
-## Authentication
+## 🔒 Security
 
-Semua endpoint (kecuali `/api/auth/register` dan `/api/auth/login`) memerlukan authentication token.
+### Firebase Security Rules
 
-### Cara menggunakan:
+Firestore Security Rules sudah diset di Firebase Console untuk:
+- Role-based access control (RBAC)
+- Data privacy (users hanya bisa read data mereka sendiri)
+- Write protection berdasarkan role
 
-1. Login untuk mendapatkan token:
+Lihat [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) section 4 untuk rules lengkap.
+
+### CORS
+
+CORS sudah dikonfigurasi untuk allow requests dari:
+- `http://localhost:5500`
+- `http://127.0.0.1:5500`
+
+Tambahkan origin lain di `.env` jika perlu.
+
+## 🧪 Testing
+
 ```bash
-POST /api/auth/login
-Body: {
-  "username": "dokter",
-  "password": "dokter123"
-}
+npm test
 ```
 
-2. Gunakan token di header:
-```
-Authorization: Bearer <your_token>
-```
-
-## Role-based Access
-
-- **admin** - Full access
-- **dokter** - Can create prescriptions, update consultations
-- **perawat** - Can update vitals
-- **apotek** - Can process prescriptions, manage medicines
-- **pasien** - Can view own data
-- **pemilik** - View reports (can be extended)
-
-## Testing
-
-### Manual Testing dengan Postman/Thunder Client
-
-1. **Register User:**
-```json
-POST http://localhost:3000/api/auth/register
-Content-Type: application/json
-
-{
-  "username": "admin",
-  "password": "admin123",
-  "role": "admin",
-  "fullName": "Admin User"
-}
-```
-
-2. **Login:**
-```json
-POST http://localhost:3000/api/auth/login
-Content-Type: application/json
-
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
-
-3. **Create Patient (dengan token):**
-```json
-POST http://localhost:3000/api/patients
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "nama": "Ahmad Wijaya",
-  "alamat": "Jl. Sudirman No. 123",
-  "no_telp": "081234567890",
-  "status_pasien": "umum"
-}
-```
-
-## Struktur Folder
+## 📁 Struktur Project
 
 ```
 backend/
-├── config/          # Database configuration
-├── controllers/     # Business logic
-├── middleware/       # Auth, validation, error handling
-├── models/          # Mongoose models
-├── routes/          # API routes
-├── .env.example     # Environment variables template
-├── .gitignore
-├── package.json
-├── server.js        # Entry point
-└── README.md
+├── config/
+│   ├── database.js              # Firebase Admin SDK initialization
+│   └── firebase-config.json     # Firebase service account key (gitignored)
+├── controllers/
+│   ├── authController.js        # Authentication logic
+│   ├── patientController.js     # Patient CRUD
+│   ├── medicineController.js    # Medicine CRUD
+│   ├── appointmentController.js # Appointment CRUD
+│   ├── prescriptionController.js# Prescription CRUD
+│   └── doctorController.js      # Doctor CRUD
+├── middleware/
+│   ├── auth.js                  # Auth middleware
+│   └── errorHandler.js          # Error handling
+├── models/
+│   ├── Patient.js               # Patient model (Firestore)
+│   ├── Medicine.js              # Medicine model (Firestore)
+│   ├── Appointment.js           # Appointment model (Firestore)
+│   ├── Prescription.js          # Prescription model (Firestore)
+│   ├── Doctor.js                # Doctor model (Firestore)
+│   └── User.js                  # User model (Firebase Auth + Firestore)
+├── routes/
+│   ├── auth.js                  # Auth routes
+│   ├── patients.js              # Patient routes
+│   ├── medicines.js             # Medicine routes
+│   ├── appointments.js          # Appointment routes
+│   ├── prescriptions.js         # Prescription routes
+│   └── doctors.js               # Doctor routes
+├── scripts/
+│   └── migrate-users.js         # Migration script SQLite → Firebase
+├── utils/
+│   └── envSetup.js              # Environment setup utility
+├── .env                         # Environment variables
+├── .gitignore                   # Git ignore rules
+├── package.json                 # Dependencies
+├── server.js                    # Server entry point
+├── FIREBASE_SETUP.md            # Firebase setup guide
+└── README.md                    # This file
 ```
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### MongoDB Connection Error
-
-**Error: "uri parameter to openUri() must be a string"**
-- ✅ **FIXED:** Server now auto-creates `.env` file if missing
-- ✅ **FIXED:** Uses default MONGODB_URI if not set
-- Check if `.env` file exists in `backend/` directory
-- Verify `MONGODB_URI` is set correctly in `.env`
-
-**Error: "ECONNREFUSED"**
-- Make sure MongoDB service is running
-- Windows: `net start MongoDB`
-- Mac/Linux: `sudo systemctl start mongod`
-- Check MongoDB is listening on port 27017
-
-**Error: "Authentication failed"**
-- For local MongoDB: Remove auth from connection string
-- For MongoDB Atlas: Check username/password and IP whitelist
-
-**For detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)**
-
-### Port Already in Use
-- Ubah `PORT` di `.env`
-- Atau stop process yang menggunakan port tersebut
-
-### JWT Error
-- Pastikan `JWT_SECRET` sudah di-set di `.env` (auto-generated if not set)
-- Token harus dikirim dengan format: `Bearer <token>`
-
-### Environment Variables Not Loading
-- Server will auto-create `.env` file on first run
-- Check `.env` file format (no quotes around values)
-- Restart server after modifying `.env`
-
-## Development
-
-Untuk development dengan auto-reload:
+### Error: "Cannot find module 'firebase-admin'"
 ```bash
-npm run dev
+npm install firebase-admin
 ```
 
-Pastikan `nodemon` sudah terinstall sebagai dev dependency.
+### Error: "ENOENT: no such file or directory 'firebase-config.json'"
+- Download service account key dari Firebase Console
+- Simpan di `backend/config/firebase-config.json`
+- Ikuti [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
 
-## Production
+### Error: "Permission denied" di Firestore
+- Check Firestore Security Rules di Firebase Console
+- Pastikan rules sudah di-publish
+- Coba set rules ke test mode sementara untuk debugging
 
-1. Set `NODE_ENV=production` di `.env`
-2. Gunakan MongoDB Atlas atau production MongoDB
-3. Set strong `JWT_SECRET`
-4. Setup proper CORS origins
-5. Use process manager seperti PM2
+### Error: "auth/email-already-exists" saat migrate
+- User sudah ada di Firebase Auth
+- Hapus user di Firebase Console → Authentication atau skip migration
 
-```bash
-npm install -g pm2
-pm2 start server.js --name klinik-api
-```
+## 📝 Catatan Penting
 
-## License
+1. **Firebase Config File**: `firebase-config.json` adalah **SENSITIVE**, jangan commit ke Git!
+2. **Default Passwords**: Users yang di-migrate perlu reset password
+3. **Firestore Structure**: NoSQL database, berbeda dengan relational SQLite
+4. **Real-time**: Firestore mendukung real-time updates (bisa diimplementasikan di frontend)
+5. **Quota**: Free tier Firebase punya limits, monitor usage di console
 
-ISC
+## 🔗 Links
 
+- [Firebase Console](https://console.firebase.google.com)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Firestore Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
+- [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup)
+
+---
+
+**Developed for**: Sistem Analisis dan Desain (SAD) - Klinik Sentosa
+**Database**: Firebase Firestore (Cloud NoSQL Database)
+**Authentication**: Firebase Authentication

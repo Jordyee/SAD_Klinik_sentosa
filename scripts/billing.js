@@ -24,6 +24,30 @@ function displayPrescriptionsForBilling() {
         p.status === 'processed' && p.paymentStatus === 'unpaid'
     );
     
+    // Ensure a search input exists for filtering patient cards
+    let searchInput = document.getElementById('billingPatientSearch');
+    if (!searchInput) {
+        searchInput = document.createElement('input');
+        searchInput.type = 'search';
+        searchInput.id = 'billingPatientSearch';
+        searchInput.placeholder = 'Cari pasien (nama atau ID)...';
+        searchInput.className = 'searchable-select-input';
+        container.parentNode.insertBefore(searchInput, container);
+
+        // Debounced filter
+        let t;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(t);
+            const q = e.target.value.trim().toLowerCase();
+            t = setTimeout(() => {
+                document.querySelectorAll('.patient-billing-card').forEach(card => {
+                    const txt = (card.textContent || '').toLowerCase();
+                    card.style.display = q === '' || txt.includes(q) ? '' : 'none';
+                });
+            }, 160);
+        });
+    }
+
     container.innerHTML = '';
 
     if (prescriptionsForBilling.length === 0) {
@@ -142,6 +166,8 @@ function loadBillingDetails(patientId) {
     billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds); // Store as JSON string
     billingDetails.dataset.patientId = patientId;
     billingDetails.dataset.finalTotal = finalTotal;
+    billingDetails.dataset.biayaPemeriksaan = biayaPemeriksaan;
+    billingDetails.dataset.biayaObat = biayaObat;
     
     billingDetails.style.display = 'block';
 }
@@ -179,7 +205,9 @@ function processPayment() {
 
     savePrescriptions(allPrescriptions);
     
-    const finalTotal = parseInt(billingDetails.dataset.finalTotal);
+    const finalTotal = Number(billingDetails.dataset.finalTotal) || 0;
+    const biayaPemeriksaanPaid = Number(billingDetails.dataset.biayaPemeriksaan) || 0;
+    const biayaObatPaid = Number(billingDetails.dataset.biayaObat) || 0;
 
     const payment = {
         id: 'PAY' + Date.now(),
@@ -188,6 +216,8 @@ function processPayment() {
         patientName: getPatientName(patientId),
         date: new Date().toISOString(),
         totalBayar: finalTotal,
+        biayaPemeriksaan: biayaPemeriksaanPaid,
+        biayaObat: biayaObatPaid,
         paymentMethod: document.querySelector('input[name="paymentMethod"]:checked').value,
         status: 'Lunas'
     };
