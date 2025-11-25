@@ -1,18 +1,18 @@
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function () {
     requireRole(['apotek', 'admin']);
-    loadPharmacyData();
+    await loadPharmacyData();
     setupPharmacyListeners();
 });
 
-function loadPharmacyData() {
-    displayPrescriptions();
-    displayStockTable();
+async function loadPharmacyData() {
+    await displayPrescriptions();
+    await displayStockTable();
 }
 
 function setupPharmacyListeners() {
     // Modal closing logic
-    window.onclick = function(event) {
+    window.onclick = function (event) {
         const modals = document.querySelectorAll('.modal');
         modals.forEach(modal => {
             if (event.target === modal) {
@@ -26,7 +26,7 @@ function setupPharmacyListeners() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
-            
+
             tabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
@@ -42,22 +42,22 @@ function setupPharmacyListeners() {
 }
 
 // --- Prescription Handling ---
-function getPrescriptions() { return JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]'); }
-function savePrescriptions(prescriptions) { localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions)); }
+// Note: getPrescriptions() is now from data-integration.js (Firebase)
 
-function displayPrescriptions() {
+async function displayPrescriptions() {
     const container = document.getElementById('prescriptionsList');
-    const prescriptions = getPrescriptions().filter(p => 
-        (p.status === 'pending' || p.status === 'pending_doctor_review') || 
+    const allPrescriptions = await getPrescriptions();
+    const prescriptions = allPrescriptions.filter(p =>
+        (p.status === 'pending' || p.status === 'pending_doctor_review') ||
         (p.status === 'processed' && p.paymentStatus === 'paid')
     );
-    const medicines = getMedicines();
+    const medicines = await getMedicines();
 
     if (prescriptions.length === 0) {
         container.innerHTML = `<div class="empty-state"><p>Belum ada resep aktif yang masuk.</p></div>`;
         return;
     }
-    
+
     container.innerHTML = prescriptions.map(p => {
         let actionButton = '';
         let statusText = getPrescriptionStatusText(p.status);
@@ -102,15 +102,16 @@ function displayPrescriptions() {
     }).join('');
 }
 
-function viewPrescriptionDetails(prescriptionId) {
-    const prescription = getPrescriptions().find(p => p.id === prescriptionId);
+async function viewPrescriptionDetails(prescriptionId) {
+    const prescriptions = await getPrescriptions();
+    const prescription = prescriptions.find(p => p.id === prescriptionId);
     if (!prescription) return;
-    
+
     const modal = document.getElementById('prescriptionModal');
     const modalBody = document.getElementById('prescriptionModalBody');
     const footer = modal.querySelector('.modal-footer');
 
-    const medicines = getMedicines();
+    const medicines = await getMedicines();
     const items = Array.isArray(prescription.items) ? prescription.items : [];
 
     const itemsHtml = items.map(item => {
@@ -127,94 +128,111 @@ function viewPrescriptionDetails(prescriptionId) {
             <tbody>${items.length > 0 ? itemsHtml : '<tr><td colspan="3">Tidak ada item obat.</td></tr>'}</tbody>
         </table>
     `;
-    
+
     footer.innerHTML = `<button class="btn-cancel" onclick="closePrescriptionModal()">Tutup</button>`;
     modal.style.display = 'block';
 }
 
-function reportOutOfStock(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) return;
+async function reportOutOfStock(prescriptionId) {
+    try {
+        const prescription = (await getPrescriptions()).find(p => p.id === prescriptionId);
+        if (!prescription) return;
 
-    prescriptions[idx].status = 'pending_doctor_review';
-    prescriptions[idx].notes = `[Stok Kurang] ${prescriptions[idx].notes}`;
-    savePrescriptions(prescriptions);
+        // Update prescription in Firebase
+        await firebaseDB.collection('prescriptions').doc(prescriptionId).update({
+            status: 'pending_doctor_review',
+            notes: `[Stok Kurang] ${prescription.notes}`,
+            updatedAt: new Date()
+        });
 
-    Swal.fire('Terkirim', 'Laporan stok kurang telah dikirim ke dokter untuk ditinjau.', 'success');
-    displayPrescriptions();
+        Swal.fire('Terkirim', 'Laporan stok kurang telah dikirim ke dokter untuk ditinjau.', 'success');
+        await displayPrescriptions();
+    } catch (error) {
+        console.error('Error reporting out of stock:', error);
+        Swal.fire('Error', 'Gagal melaporkan stok kurang.', 'error');
+    }
 }
 
-function processPrescription(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) {
-        Swal.fire('Error', 'Resep tidak ditemukan.', 'error');
-        return;
-    }
-    
-    const medicines = getMedicines();
-    let stockSufficient = true;
-    // Double-check stock before processing
-    prescriptions[idx].items.forEach(item => {
-        const med = medicines.find(m => m.id === item.medicineId);
-        if (!med || med.stok < item.quantity) {
-            stockSufficient = false;
+async function processPrescription(prescriptionId) {
+    try {
+        const prescriptions = await getPrescriptions();
+        const prescription = prescriptions.find(p => p.id === prescriptionId);
+        if (!prescription) {
+            Swal.fire('Error', 'Resep tidak ditemukan.', 'error');
+            return;
         }
-    });
 
-    if (!stockSufficient) {
-        Swal.fire('Gagal', 'Stok berubah dan tidak lagi mencukupi. Harap muat ulang dan laporkan ke dokter.', 'error');
-        displayPrescriptions(); // Refresh the view to show the 'report' button
-        return;
-    }
+        const medicines = await getMedicines();
+        let stockSufficient = true;
+        // Double-check stock before processing
+        prescription.items.forEach(item => {
+            const med = medicines.find(m => m.id === item.medicineId);
+            if (!med || med.stok < item.quantity) {
+                stockSufficient = false;
+            }
+        });
 
-    // Deduct stock
-    prescriptions[idx].items.forEach(item => {
-        const medIdx = medicines.findIndex(m => m.id === item.medicineId);
-        if (medIdx > -1) {
-            medicines[medIdx].stok -= item.quantity;
+        if (!stockSufficient) {
+            Swal.fire('Gagal', 'Stok berubah dan tidak lagi mencukupi. Harap muat ulang dan laporkan ke dokter.', 'error');
+            await displayPrescriptions();
+            return;
         }
-    });
-    saveMedicines(medicines);
 
-    // Update status
-    prescriptions[idx].status = 'processed';
-    savePrescriptions(prescriptions);
-    updateQueueStatus(prescriptions[idx].patientId, 'Menunggu Pembayaran');
-    
-    Swal.fire('Berhasil', 'Resep telah diproses dan dikirim ke kasir untuk pembayaran.', 'success');
-    displayPrescriptions();
+        // Deduct stock - update medicines in Firebase
+        prescription.items.forEach(item => {
+            const medIdx = medicines.findIndex(m => m.id === item.medicineId);
+            if (medIdx > -1) {
+                medicines[medIdx].stok -= item.quantity;
+            }
+        });
+        await saveMedicines(medicines);
+
+        // Update prescription status in Firebase
+        await firebaseDB.collection('prescriptions').doc(prescriptionId).update({
+            status: 'processed',
+            updatedAt: new Date()
+        });
+
+        // Update queue status
+        await updateQueueStatus(prescription.patientId, 'Menunggu Pembayaran');
+
+        Swal.fire('Berhasil', 'Resep telah diproses dan dikirim ke kasir untuk pembayaran.', 'success');
+        await displayPrescriptions();
+    } catch (error) {
+        console.error('Error processing prescription:', error);
+        Swal.fire('Error', 'Gagal memproses resep.', 'error');
+    }
 }
 
-function handOverMedicine(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) return;
+async function handOverMedicine(prescriptionId) {
+    try {
+        const prescriptions = await getPrescriptions();
+        const prescription = prescriptions.find(p => p.id === prescriptionId);
+        if (!prescription) return;
 
-    const completedPrescription = { ...prescriptions[idx] };
+        const completedPrescription = { ...prescription };
 
-    // Update patient's main queue status to Selesai ONLY if they have no other active prescriptions
-    const otherActivePrescriptions = prescriptions.filter(p => p.patientId === completedPrescription.patientId && p.id !== prescriptionId && p.status !== 'completed');
-    if (otherActivePrescriptions.length === 0) {
-        updateQueueStatus(completedPrescription.patientId, 'Selesai');
+        // Update patient's main queue status to Selesai ONLY if they have no other active prescriptions
+        const otherActivePrescriptions = prescriptions.filter(p => p.patientId === completedPrescription.patientId && p.id !== prescriptionId && p.status !== 'completed');
+        if (otherActivePrescriptions.length === 0) {
+            await updateQueueStatus(completedPrescription.patientId, 'Selesai');
+        }
+
+        // Save to pharmacy history in Firebase
+        await savePharmacyHistory({
+            ...completedPrescription,
+            status: 'completed'
+        });
+
+        // Delete prescription from Firebase (since it's now in history)
+        await firebaseDB.collection('prescriptions').doc(prescriptionId).delete();
+
+        Swal.fire('Selesai', 'Obat telah diserahkan kepada pasien.', 'success');
+        await displayPrescriptions();
+    } catch (error) {
+        console.error('Error handing over medicine:', error);
+        Swal.fire('Error', 'Gagal menyerahkan obat.', 'error');
     }
-    
-    // Move the completed prescription to history
-    const history = JSON.parse(localStorage.getItem('pharmacyHistory') || '[]');
-    history.push({
-        ...completedPrescription,
-        status: 'completed',
-        completedAt: new Date().toISOString()
-    });
-    localStorage.setItem('pharmacyHistory', JSON.stringify(history));
-
-    // Remove from active prescriptions
-    prescriptions.splice(idx, 1);
-    savePrescriptions(prescriptions);
-
-    Swal.fire('Selesai', 'Obat telah diserahkan kepada pasien.', 'success');
-    displayPrescriptions();
 }
 
 function closePrescriptionModal() {
@@ -224,8 +242,8 @@ function closePrescriptionModal() {
     }
 }
 
-function refreshPrescriptions() { 
-    displayPrescriptions(); 
+async function refreshPrescriptions() {
+    await displayPrescriptions();
 }
 
 function getPrescriptionStatusText(status) {
@@ -240,19 +258,19 @@ function getPrescriptionStatusText(status) {
 }
 
 // --- History ---
-function displayPharmacyHistory() {
+async function displayPharmacyHistory() {
     const container = document.getElementById('pharmacyHistoryList');
-    const history = JSON.parse(localStorage.getItem('pharmacyHistory') || '[]');
+    const history = await getPharmacyHistory();
 
     if (history.length === 0) {
         container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat transaksi.</p></div>`;
         return;
     }
 
-    container.innerHTML = history.slice().reverse().map(item => `
+    container.innerHTML = history.map(item => `
         <div class="history-card">
             <p><strong>Pasien:</strong> ${item.patientName} (ID: ${item.patientId})</p>
-            <p><strong>Tanggal Selesai:</strong> ${new Date(item.completedAt).toLocaleString('id-ID')}</p>
+            <p><strong>Tanggal Selesai:</strong> ${item.completedAt.toDate().toLocaleString('id-ID')}</p>
             <p><strong>Catatan Dokter:</strong> ${item.notes || '-'}</p>
         </div>
     `).join('');
@@ -261,10 +279,10 @@ function displayPharmacyHistory() {
 
 // --- Stock Management ---
 
-function displayStockTable() {
+async function displayStockTable() {
     const tbody = document.getElementById('stockTableBody');
-    const medicines = getMedicines();
-    
+    const medicines = await getMedicines();
+
     tbody.innerHTML = medicines.map(med => {
         const stockStatus = med.stok > 20 ? 'status-success' : med.stok > 0 ? 'status-warning' : 'status-error';
         return `
@@ -280,9 +298,9 @@ function displayStockTable() {
     }).join('');
 }
 
-function addMedicine(event) {
+async function addMedicine(event) {
     event.preventDefault();
-    const medicines = getMedicines();
+    const medicines = await getMedicines();
     const newMed = {
         id: 'M' + Date.now(),
         nama: document.getElementById('addMedicineName').value,
@@ -291,14 +309,15 @@ function addMedicine(event) {
         golongan: document.getElementById('addMedicineGolongan').value
     };
     medicines.push(newMed);
-    saveMedicines(medicines);
-    displayStockTable();
+    await saveMedicines(medicines);
+    await displayStockTable();
     closeMedicineModal('add');
     document.getElementById('addMedicineForm').reset();
 }
 
-function showEditMedicineModal(medicineId) {
-    const medicine = getMedicines().find(m => m.id === medicineId);
+async function showEditMedicineModal(medicineId) {
+    const medicines = await getMedicines();
+    const medicine = medicines.find(m => m.id === medicineId);
     if (!medicine) return;
 
     document.getElementById('editMedicineId').value = medicine.id;
@@ -310,9 +329,9 @@ function showEditMedicineModal(medicineId) {
     document.getElementById('editMedicineModal').style.display = 'block';
 }
 
-function updateMedicine(event) {
+async function updateMedicineForm(event) {
     event.preventDefault();
-    const medicines = getMedicines();
+    const medicines = await getMedicines();
     const medicineId = document.getElementById('editMedicineId').value;
     const idx = medicines.findIndex(m => m.id === medicineId);
 
@@ -321,10 +340,10 @@ function updateMedicine(event) {
         medicines[idx].stok = parseInt(document.getElementById('editMedicineStock').value);
         medicines[idx].harga = parseInt(document.getElementById('editMedicinePrice').value);
         medicines[idx].golongan = document.getElementById('editMedicineGolongan').value;
-        saveMedicines(medicines);
+        await saveMedicines(medicines);
     }
 
-    displayStockTable();
+    await displayStockTable();
     closeMedicineModal('edit');
 }
 

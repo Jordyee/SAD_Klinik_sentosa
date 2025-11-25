@@ -1,30 +1,33 @@
-document.addEventListener('DOMContentLoaded', function() {
-    requireRole(['admin', 'pasien']); // Allow patients to see their bills
-    loadBillingPageData();
+// ======================================================================
+// BILLING MODULE - FIREBASE VERSION
+// ======================================================================
+// Payment data now saved to Firebase Firestore
+
+const BIAYA_PEMERIKSAAN_DEFAULT = 50000;
+let paymentHistory = []; // Keep for local caching
+
+document.addEventListener('DOMContentLoaded', async function () {
+    requireRole(['admin', 'pasien']);
+    await loadBillingPageData();
 });
 
-function loadBillingPageData() {
-    const savedPayments = localStorage.getItem('paymentHistory');
-    if (savedPayments) {
-        paymentHistory = JSON.parse(savedPayments);
-    }
-    
-    displayPrescriptionsForBilling();
-    displayPaymentHistory();
+async function loadBillingPageData() {
+    await displayPrescriptionsForBilling();
+    await displayPaymentHistory();
 }
 
 // --- UI Population ---
 
-function displayPrescriptionsForBilling() {
+async function displayPrescriptionsForBilling() {
     const container = document.getElementById('patientsForBillingList');
     if (!container) return;
 
-    const allPrescriptions = getPrescriptions();
-    const prescriptionsForBilling = allPrescriptions.filter(p => 
+    const allPrescriptions = await getPrescriptions();
+    const prescriptionsForBilling = allPrescriptions.filter(p =>
         p.status === 'processed' && p.paymentStatus === 'unpaid'
     );
-    
-    // Ensure a search input exists for filtering patient cards
+
+    // Search input
     let searchInput = document.getElementById('billingPatientSearch');
     if (!searchInput) {
         searchInput = document.createElement('input');
@@ -34,7 +37,6 @@ function displayPrescriptionsForBilling() {
         searchInput.className = 'searchable-select-input';
         container.parentNode.insertBefore(searchInput, container);
 
-        // Debounced filter
         let t;
         searchInput.addEventListener('input', (e) => {
             clearTimeout(t);
@@ -70,14 +72,13 @@ function displayPrescriptionsForBilling() {
     Object.values(patientsToBill).forEach(patient => {
         const patientCard = document.createElement('div');
         patientCard.className = 'patient-billing-card';
-        patientCard.dataset.patientId = patient.patientId; // Add data attribute for easy selection
+        patientCard.dataset.patientId = patient.patientId;
         patientCard.innerHTML = `
             <div class="patient-name">${patient.patientName}</div>
             <div class="patient-id">Pasien ID: ${patient.patientId}</div>
             <div class="patient-queue-number">Resep: ${patient.prescriptions.length} item</div>
         `;
-        
-        // Use addEventListener for a more robust click handling
+
         patientCard.addEventListener('click', () => {
             loadBillingDetails(patient.patientId);
         });
@@ -86,26 +87,25 @@ function displayPrescriptionsForBilling() {
     });
 }
 
-function loadBillingDetails(patientId) {
+async function loadBillingDetails(patientId) {
     const billingDetails = document.getElementById('billingDetails');
     if (!patientId) {
         billingDetails.style.display = 'none';
         return;
     }
 
-    // Highlight selected patient card using the data attribute
     document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
     const selectedCard = document.querySelector(`.patient-billing-card[data-patient-id='${patientId}']`);
     if (selectedCard) selectedCard.classList.add('active');
 
-    const patient = findPatientById(patientId);
+    const patient = await findPatientById(patientId);
     if (!patient) {
         Swal.fire('Error', 'Data pasien tidak ditemukan.', 'error');
         return;
     }
 
-    // Get all unpaid prescriptions for this patient
-    const patientPrescriptions = getPrescriptions().filter(p => 
+    const allPrescriptions = await getPrescriptions();
+    const patientPrescriptions = allPrescriptions.filter(p =>
         p.patientId === patientId && p.status === 'processed' && p.paymentStatus === 'unpaid'
     );
 
@@ -115,11 +115,11 @@ function loadBillingDetails(patientId) {
         return;
     }
 
-    // --- Cost Calculation (Consolidated) ---
-    const biayaPemeriksaan = BIAYA_PEMERIKSAAN_DEFAULT; // Charge examination fee once per payment session
+    // Cost Calculation
+    const biayaPemeriksaan = BIAYA_PEMERIKSAAN_DEFAULT;
     let biayaObat = 0;
-    const medicines = getMedicines();
-    
+    const medicines = await getMedicines();
+
     patientPrescriptions.forEach(prescription => {
         prescription.items.forEach(item => {
             const medicine = medicines.find(m => m.id === item.medicineId);
@@ -133,115 +133,111 @@ function loadBillingDetails(patientId) {
     let discount = 0;
     const patientStatus = patient.status_pasien || 'umum';
 
-    // --- Discount Logic ---
+    // Discount Logic
     switch (patientStatus) {
         case 'bpjs':
-            discount = subTotal; // 100% discount
+            discount = subTotal; // 100%
             break;
         case 'asuransi':
-            discount = subTotal * 0.8; // 80% discount
+            discount = subTotal * 0.8; // 80%
             break;
         case 'umum':
         default:
-            discount = 0; // No discount
+            discount = 0;
             break;
     }
 
     const finalTotal = subTotal - discount;
 
-    // --- Update UI ---
+    // Update UI
     document.getElementById('biayaPemeriksaan').textContent = `Rp ${biayaPemeriksaan.toLocaleString('id-ID')}`;
     document.getElementById('biayaObat').textContent = `Rp ${biayaObat.toLocaleString('id-ID')}`;
     document.getElementById('subTotal').innerHTML = `<strong>Rp ${subTotal.toLocaleString('id-ID')}</strong>`;
-    
+
     const statusEl = document.getElementById('patientStatus');
     statusEl.textContent = patientStatus.charAt(0).toUpperCase() + patientStatus.slice(1);
     statusEl.className = `status-badge status-${patientStatus}`;
 
     document.getElementById('discount').textContent = `- Rp ${discount.toLocaleString('id-ID')}`;
     document.getElementById('finalTotal').innerHTML = `<strong>Rp ${finalTotal.toLocaleString('id-ID')}</strong>`;
-    
-    // Store patient ID, all relevant prescription IDs, and final total
+
     const prescriptionIds = patientPrescriptions.map(p => p.id);
-    billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds); // Store as JSON string
+    billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds);
     billingDetails.dataset.patientId = patientId;
+    billingDetails.dataset.patientName = patient.nama;
     billingDetails.dataset.finalTotal = finalTotal;
     billingDetails.dataset.biayaPemeriksaan = biayaPemeriksaan;
     billingDetails.dataset.biayaObat = biayaObat;
-    
+
     billingDetails.style.display = 'block';
 }
 
+// --- Payment Processing (FIREBASE) ---
 
-// --- Payment Processing ---
-
-function processPayment() {
+async function processPayment() {
     const billingDetails = document.getElementById('billingDetails');
     const patientId = billingDetails.dataset.patientId;
     const prescriptionIdsStr = billingDetails.dataset.prescriptionIds;
-    
+
     if (!patientId || !prescriptionIdsStr) {
         Swal.fire('Peringatan', 'Pilih pasien dari daftar terlebih dahulu.', 'warning');
         return;
     }
-    
+
     const prescriptionIds = JSON.parse(prescriptionIdsStr);
-    let allPrescriptions = getPrescriptions();
 
-    // Update payment status for all prescriptions in this transaction
-    let updatedCount = 0;
-    prescriptionIds.forEach(id => {
-        const index = allPrescriptions.findIndex(p => p.id === id);
-        if (index !== -1) {
-            allPrescriptions[index].paymentStatus = 'paid';
-            updatedCount++;
-        }
-    });
+    // Update prescription payment status in Firebase
+    const updatePromises = prescriptionIds.map(id =>
+        firebaseDB.collection('prescriptions').doc(id).update({
+            paymentStatus: 'paid',
+            updatedAt: new Date()
+        })
+    );
 
-    if (updatedCount === 0) {
-        Swal.fire('Error', 'Tidak ada resep yang ditemukan untuk diproses.', 'error');
-        return;
-    }
+    await Promise.all(updatePromises);
 
-    savePrescriptions(allPrescriptions);
-    
     const finalTotal = Number(billingDetails.dataset.finalTotal) || 0;
     const biayaPemeriksaanPaid = Number(billingDetails.dataset.biayaPemeriksaan) || 0;
     const biayaObatPaid = Number(billingDetails.dataset.biayaObat) || 0;
+    const patientName = billingDetails.dataset.patientName;
 
-    const payment = {
-        id: 'PAY' + Date.now(),
-        prescriptionIds: prescriptionIds, // Store all paid prescription IDs
+    // Save payment to Firebase
+    const paymentData = {
+        prescriptionIds: prescriptionIds,
         patientId: patientId,
-        patientName: getPatientName(patientId),
-        date: new Date().toISOString(),
+        patientName: patientName,
         totalBayar: finalTotal,
         biayaPemeriksaan: biayaPemeriksaanPaid,
         biayaObat: biayaObatPaid,
         paymentMethod: document.querySelector('input[name="paymentMethod"]:checked').value,
-        status: 'Lunas'
+        status: 'Lunas',
+        date: new Date(),
+        createdBy: getCurrentUser().username,
+        createdAt: new Date()
     };
-    
-    paymentHistory.push(payment);
-    localStorage.setItem('paymentHistory', JSON.stringify(paymentHistory));
-    
-    // Update queue status for the patient
-    updateQueueStatus(patientId, 'Menunggu Pengambilan Obat');
+
+    const paymentRef = await firebaseDB.collection('payments').add(paymentData);
+
+    // Update queue status
+    const queue = await getQueue();
+    const appointment = queue.find(q => q.patientId === patientId);
+    if (appointment) {
+        await updateQueueStatus(appointment.id, 'Menunggu Pengambilan Obat');
+    }
 
     Swal.fire({
         title: 'Pembayaran Berhasil!',
-        text: `Pembayaran untuk ${updatedCount} resep telah berhasil. Pasien dapat melanjutkan untuk mengambil obat.`,
+        text: `Pembayaran untuk ${prescriptionIds.length} resep telah berhasil. Pasien dapat melanjutkan untuk mengambil obat.`,
         icon: 'success',
         timer: 2500,
         showConfirmButton: false
     }).then(() => {
-        showReceipt(payment); // Show receipt after successful payment
+        showReceipt({ id: paymentRef.id, ...paymentData });
     });
-    
-    resetBilling();
-    loadBillingPageData(); // Refresh lists
-}
 
+    resetBilling();
+    await loadBillingPageData();
+}
 
 // --- UI Helpers ---
 
@@ -250,19 +246,31 @@ function resetBilling() {
     document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
 }
 
-function displayPaymentHistory() {
+async function displayPaymentHistory() {
     const container = document.getElementById('paymentHistory');
     if (!container) return;
 
-    if (paymentHistory.length === 0) {
+    // Get payments from Firebase
+    const paymentsSnapshot = await firebaseDB.collection('payments')
+        .orderBy('date', 'desc')
+        .limit(50)
+        .get();
+
+    if (paymentsSnapshot.empty) {
         container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat pembayaran.</p></div>`;
         return;
     }
-    
-    container.innerHTML = paymentHistory.slice().reverse().map(payment => `
+
+    const payments = [];
+    paymentsSnapshot.forEach(doc => {
+        payments.push({ id: doc.id, ...doc.data() });
+    });
+
+    container.innerHTML = payments.map(payment => `
         <div class="payment-card">
             <p><strong>${payment.patientName}</strong> (ID: ${payment.patientId})</p>
             <p>Total: Rp ${payment.totalBayar.toLocaleString('id-ID')}</p>
+            <p>Tanggal: ${payment.date.toDate().toLocaleString('id-ID')}</p>
             <p>Status: <span class="status-badge status-success">${payment.status}</span></p>
         </div>
     `).join('');
@@ -272,12 +280,11 @@ function showReceipt(payment) {
     const modal = document.getElementById('receiptModal');
     const receiptBody = document.getElementById('receiptBody');
     if (!modal || !receiptBody) return;
-    
-    // Store payment data on modal for printing
+
     modal.dataset.payment = JSON.stringify(payment);
 
-    // Handle multiple prescription IDs
-    const prescriptionIdText = (payment.prescriptionIds || [payment.prescriptionId]).join(', ');
+    const prescriptionIdText = (payment.prescriptionIds || []).join(', ');
+    const paymentDate = payment.date instanceof Date ? payment.date : payment.date.toDate();
 
     receiptBody.innerHTML = `
         <div class="receipt-header">
@@ -287,7 +294,7 @@ function showReceipt(payment) {
             <hr>
         </div>
         <div class="receipt-details">
-            <p><strong>Tanggal:</strong> ${new Date(payment.date).toLocaleString('id-ID')}</p>
+            <p><strong>Tanggal:</strong> ${paymentDate.toLocaleString('id-ID')}</p>
             <p><strong>Pasien:</strong> ${payment.patientName} (ID: ${payment.patientId})</p>
             <p><strong>ID Resep:</strong> ${prescriptionIdText}</p>
             <p><strong>Metode Pembayaran:</strong> ${payment.paymentMethod.toUpperCase()}</p>
@@ -303,7 +310,7 @@ function showReceipt(payment) {
 
 function closeReceiptModal() {
     const modal = document.getElementById('receiptModal');
-    if(modal) modal.style.display = 'none';
+    if (modal) modal.style.display = 'none';
 }
 
 function printReceipt() {
@@ -313,10 +320,9 @@ function printReceipt() {
         return;
     }
 
-    // Create a new window for printing
     const printWindow = window.open('', '_blank');
     printWindow.document.write('<html><head><title>Struk Pembayaran</title>');
-    printWindow.document.write('<link rel="stylesheet" href="../styles/main.css">'); // Include main CSS for basic styling
+    printWindow.document.write('<link rel="stylesheet" href="../styles/main.css">');
     printWindow.document.write('<style>');
     printWindow.document.write(`
         body { font-family: 'Inter', sans-serif; margin: 20px; }
@@ -340,8 +346,4 @@ function printReceipt() {
     printWindow.close();
 }
 
-
-
-
-
-
+console.log('✅ Billing.js (Firebase) loaded successfully!');

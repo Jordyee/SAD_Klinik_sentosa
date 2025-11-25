@@ -1,15 +1,16 @@
-// Examination Module JavaScript
+// ======================================================================
+// EXAMINATION MODULE - FIREBASE VERSION
+// ======================================================================
+// Medical records and prescriptions now saved to Firebase Firestore
 
-let vitalsRecords = []; // array of vitals entries {id, patientId, date, data}
-let medicalRecords = [];
 let currentPrescriptionItems = []; // Holds items for the current prescription being built
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function () {
     if (!requireRole(['dokter', 'perawat', 'admin'])) {
         return;
     }
-    
+
     const role = getCurrentRole();
     if (role === 'perawat') {
         document.getElementById('consultationTab').style.display = 'none';
@@ -20,21 +21,22 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('vitalsTab').style.display = 'none';
         document.querySelector('.tab-btn:first-child').style.display = 'none';
         switchExaminationTab('consultation');
-        displayProblematicPrescriptions();
-        populateMedicineSelect(); // For the prescription form
+        await displayProblematicPrescriptions();
+        await populateMedicineSelect();
     }
 
-    loadExaminationData();
+    await loadExaminationData();
     setupExaminationListeners();
 });
 
-function displayProblematicPrescriptions() {
+async function displayProblematicPrescriptions() {
     const container = document.getElementById('problematicPrescriptionsList');
     const section = document.getElementById('problematicPrescriptionsSection');
-    const prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    const problematic = prescriptions.filter(p => p.status === 'pending_doctor_review');
 
     if (!container || !section) return;
+
+    const prescriptions = await getPrescriptions();
+    const problematic = prescriptions.filter(p => p.status === 'pending_doctor_review');
 
     if (problematic.length === 0) {
         section.style.display = 'none';
@@ -54,74 +56,65 @@ function displayProblematicPrescriptions() {
     `).join('');
 }
 
-function cancelPrescription(prescriptionId) {
-    Swal.fire({
+async function cancelPrescription(prescriptionId) {
+    const result = await Swal.fire({
         title: 'Anda yakin?',
-        text: "Resep ini akan dibatalkan secara permanen.",
+        text: "Resep ini  akan dibatalkan secara permanen.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
         confirmButtonText: 'Ya, batalkan!',
         cancelButtonText: 'Tidak'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-            const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-            if (idx > -1) {
-                prescriptions[idx].status = 'cancelled';
-                localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-                Swal.fire('Dibatalkan!', 'Resep telah dibatalkan.', 'success');
-                displayProblematicPrescriptions();
-            }
-        }
     });
-}
 
-async function editPrescription(prescriptionId) {
-    let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx > -1) {
-        const { value: newNotes } = await Swal.fire({
-            title: 'Ubah Resep',
-            input: 'textarea',
-            inputLabel: 'Catatan atau resep baru untuk apotek',
-            inputValue: prescriptions[idx].notes,
-            showCancelButton: true,
-            confirmButtonText: 'Kirim Ulang',
-            cancelButtonText: 'Batal',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Anda harus memasukkan catatan!';
-                }
-            }
-        });
-
-        if (newNotes) {
-            prescriptions[idx].notes = `[DIUBAH DOKTER] ${newNotes}`;
-            prescriptions[idx].status = 'pending'; // Resend to pharmacy
-            localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-            Swal.fire('Terkirim!', 'Resep telah diubah dan dikirim ulang ke apotek.', 'success');
-            displayProblematicPrescriptions();
-        }
+    if (result.isConfirmed) {
+        await updatePrescriptionStatus(prescriptionId, 'cancelled');
+        Swal.fire('Dibatalkan!', 'Resep telah dibatalkan.', 'success');
+        await displayProblematicPrescriptions();
     }
 }
 
-function loadExaminationData() {
-    const savedVitals = localStorage.getItem('vitalsRecords');
-    if (savedVitals) vitalsRecords = JSON.parse(savedVitals);
+async function editPrescription(prescriptionId) {
+    const prescriptions = await getPrescriptions();
+    const prescription = prescriptions.find(p => p.id === prescriptionId);
 
-    const savedRecords = localStorage.getItem('medicalRecords');
-    if (savedRecords) medicalRecords = JSON.parse(savedRecords);
+    if (!prescription) return;
 
-    displayExaminationQueue();
-    populatePatientSelects();
+    const { value: newNotes } = await Swal.fire({
+        title: 'Ubah Resep',
+        input: 'textarea',
+        inputLabel: 'Catatan atau resep baru untuk apotek',
+        inputValue: prescription.notes,
+        showCancelButton: true,
+        confirmButtonText: 'Kirim Ulang',
+        cancelButtonText: 'Batal',
+        inputValidator: (value) => {
+            if (!value) return 'Anda harus memasukkan catatan!';
+        }
+    });
+
+    if (newNotes) {
+        await firebaseDB.collection('prescriptions').doc(prescriptionId).update({
+            notes: `[DIUBAH DOKTER] ${newNotes}`,
+            status: 'pending',
+            updatedAt: new Date()
+        });
+
+        Swal.fire('Terkirim!', 'Resep telah diubah dan dikirim ulang ke apotek.', 'success');
+        await displayProblematicPrescriptions();
+    }
+}
+
+async function loadExaminationData() {
+    await displayExaminationQueue();
+    await populatePatientSelects();
 }
 
 function setupExaminationListeners() {
     const vitalsForm = document.getElementById('vitalsForm');
     if (vitalsForm) vitalsForm.addEventListener('submit', handleVitalsSubmit);
-    
+
     const consultationForm = document.getElementById('consultationForm');
     if (consultationForm) consultationForm.addEventListener('submit', handleConsultationSubmit);
 }
@@ -129,7 +122,7 @@ function setupExaminationListeners() {
 function switchExaminationTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
+
     let tabIndex = 0;
     if (tab === 'consultation') tabIndex = 1;
     if (tab === 'history') tabIndex = 2;
@@ -138,25 +131,26 @@ function switchExaminationTab(tab) {
     document.getElementById(`${tab}Tab`).classList.add('active');
 }
 
-function displayExaminationQueue() {
+async function displayExaminationQueue() {
     const queueContainer = document.getElementById('examinationQueue');
-    const examinationQueue = getQueue().filter(p => 
+    const queue = await getQueue();
+    const examinationQueue = queue.filter(p =>
         ['Menunggu Pemeriksaan', 'Menunggu Dokter'].includes(p.status)
     );
-    
+
     if (examinationQueue.length === 0) {
         queueContainer.innerHTML = `<div class="empty-state"><p>Belum ada pasien dalam antrian pemeriksaan.</p></div>`;
         return;
     }
-    
+
     queueContainer.innerHTML = examinationQueue.map(item => {
         const statusInfo = getStatusInfo(item.status);
         return `
             <div class="queue-item">
                 <div class="queue-number">#${item.queueNumber}</div>
                 <div class="queue-info">
-                    <div class="queue-name">${item.patient.nama}</div>
-                    <div class="queue-details">ID: ${item.patient.patientId}</div>
+                    <div class="queue-name">${item.patientName}</div>
+                    <div class="queue-details">ID: ${item.patientId}</div>
                 </div>
                 <div class="queue-status ${statusInfo.class}">${statusInfo.text}</div>
             </div>
@@ -164,224 +158,245 @@ function displayExaminationQueue() {
     }).join('');
 }
 
-function populatePatientSelects() {
-    const queue = getQueue();
+async function populatePatientSelects() {
+    const queue = await getQueue();
     const selects = ['patientSelect', 'consultationPatientSelect', 'historyPatientSelect'];
-    
+
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (!select) return;
 
-        const currentValue = select.value;
-        // preserve existing options except default
+        // Clear existing options except first
         while (select.options.length > 1) select.remove(1);
 
-        // Create or ensure a search input exists directly above the select for quicker filtering
-        let searchInput = document.getElementById(selectId + '_search');
-        if (!searchInput) {
-            searchInput = document.createElement('input');
-            searchInput.type = 'search';
-            searchInput.id = selectId + '_search';
-            searchInput.placeholder = 'Cari nama atau ID...';
-            searchInput.className = 'searchable-select-input';
-            select.parentNode.insertBefore(searchInput, select);
-
-            // Debounced filter handler
-            let timeout;
-            searchInput.addEventListener('input', function(e) {
-                clearTimeout(timeout);
-                const q = e.target.value.trim().toLowerCase();
-                timeout = setTimeout(() => {
-                    for (let i = 1; i < select.options.length; i++) {
-                        const opt = select.options[i];
-                        const txt = opt.textContent.toLowerCase();
-                        opt.hidden = q !== '' && !txt.includes(q);
-                    }
-                }, 180);
-            });
-        }
-
-        // Populate options (keep lightweight creation)
         queue.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.patient.patientId;
-            option.textContent = `${item.patient.nama} (#${item.queueNumber})`;
+            option.value = item.id; // Use appointment ID
+            option.dataset.patientId = item.patientId;
+            option.textContent = `${item.patientName} (#${item.queueNumber})`;
             select.appendChild(option);
         });
-
-        // Reset any active filter
-        if (searchInput) {
-            searchInput.value = '';
-        }
-
-        select.value = currentValue;
     });
 }
 
-function handleVitalsSubmit(e) {
+/**
+ * Handle Vitals Submit (Save to Firebase)
+ */
+async function handleVitalsSubmit(e) {
     e.preventDefault();
-    const patientId = document.getElementById('patientSelect').value;
-    if (!patientId) {
+    const appointmentId = document.getElementById('patientSelect').value;
+    if (!appointmentId) {
         Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
-    
+
+    const select = document.getElementById('patientSelect');
+    const patientId = select.options[select.selectedIndex].dataset.patientId;
+
     const vitalsData = {
+        appointmentId: appointmentId,
+        patientId: patientId,
         tinggi_badan: document.getElementById('tinggi_badan').value,
         berat_badan: document.getElementById('berat_badan').value,
         tensi_darah: document.getElementById('tensi_darah').value,
         suhu_badan: document.getElementById('suhu_badan').value || null,
-        keluhan_perawat: document.getElementById('keluhan_perawat').value
-    };
-    // Create a new vitals record instead of overwriting historical vitals
-    const record = {
-        id: 'V' + Date.now(),
-        patientId: patientId,
-        date: new Date().toISOString(),
-        data: vitalsData
+        keluhan_perawat: document.getElementById('keluhan_perawat').value,
+        date: new Date(),
+        createdBy: getCurrentUser().username
     };
 
-    vitalsRecords.push(record);
-    localStorage.setItem('vitalsRecords', JSON.stringify(vitalsRecords));
+    // Save to Firebase medicalRecords collection
+    await firebaseDB.collection('medicalRecords').add(vitalsData);
 
-    // Move patient forward in queue
-    updateQueueStatus(patientId, 'Menunggu Dokter');
-    
+    // Update appointment status
+    await updateQueueStatus(appointmentId, 'Menunggu Dokter');
+
     Swal.fire('Berhasil', 'Data vital berhasil disimpan.', 'success');
     resetVitalsForm();
-    refreshExaminationQueue();
+    await refreshExaminationQueue();
 }
 
-function handleConsultationSubmit(e) {
+/**
+ * Handle Consultation Submit (Save Medical Record & Prescription to Firebase)
+ */
+async function handleConsultationSubmit(e) {
     e.preventDefault();
-    const patientId = document.getElementById('consultationPatientSelect').value;
-    if (!patientId) {
+    const appointmentId = document.getElementById('consultationPatientSelect').value;
+    if (!appointmentId) {
         Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
-    
+
+    const select = document.getElementById('consultationPatientSelect');
+    const patientId = select.options[select.selectedIndex].dataset.patientId;
+
     const needsPrescription = document.getElementById('needsPrescription').checked;
-    
+
     if (needsPrescription && currentPrescriptionItems.length === 0) {
         Swal.fire('Peringatan', 'Anda mencentang "memerlukan resep", tetapi belum ada obat yang ditambahkan ke resep.', 'warning');
         return;
     }
 
     const consultationData = {
+        appointmentId: appointmentId,
         patientId: patientId,
-        date: new Date().toISOString(),
+        type: 'consultation',
         keluhan: document.getElementById('keluhan_pasien').value,
-        hasil_pemeriksaan: document.getElementById('hasil_pemeriksaan').value,
-        catatan_dokter: document.getElementById('catatan_dokter').value,
+        diagnosis: document.getElementById('hasil_pemeriksaan').value,
+        treatment: document.getElementById('catatan_dokter').value,
         needsPrescription: needsPrescription,
-        prescriptionNotes: document.getElementById('prescription_notes').value || null,
-        prescriptionItems: needsPrescription ? currentPrescriptionItems : []
+        date: new Date(),
+        createdBy: getCurrentUser().username
     };
-    
-    // Append consultation as a new medical record entry (do not overwrite existing history)
-    medicalRecords.push(consultationData);
-    localStorage.setItem('medicalRecords', JSON.stringify(medicalRecords));
-    
+
+    // Save medical record to Firebase
+    await firebaseDB.collection('medicalRecords').add(consultationData);
+
+    // Update appointment with diagnosis & treatment
+    await firebaseDB.collection('appointments').doc(appointmentId).update({
+        diagnosis: consultationData.diagnosis,
+        treatment: consultationData.treatment,
+        updatedAt: new Date()
+    });
+
     if (needsPrescription) {
-        syncPrescriptionToPharmacy(patientId, {
-            notes: consultationData.prescriptionNotes,
-            items: consultationData.prescriptionItems
-        });
+        // Save prescription with items
+        const prescriptionData = {
+            appointmentId: appointmentId,
+            patientId: patientId,
+            patientName: select.options[select.selectedIndex].textContent.split(' (#')[0],
+            doctorName: getCurrentUser().fullName || getCurrentUser().username,
+            diagnosis: consultationData.diagnosis,
+            notes: document.getElementById('prescription_notes').value || '',
+            status: 'pending',
+            paymentStatus: 'unpaid',
+            items: currentPrescriptionItems
+        };
+
+        await savePrescription(prescriptionData);
+
+        // Update appointment status to waiting for pharmacy
+        await updateQueueStatus(appointmentId, 'Menunggu Resep');
     } else {
-        updateQueueStatus(patientId, 'Menunggu Pembayaran');
+        // No prescription, go to billing
+        await updateQueueStatus(appointmentId, 'Menunggu Pembayaran');
     }
-    
+
     Swal.fire('Berhasil', 'Hasil pemeriksaan berhasil disimpan!', 'success');
     resetConsultationForm();
-    refreshExaminationQueue();
+    await refreshExaminationQueue();
 }
 
-function loadPatientForConsultation(patientId) {
+/**
+ * Load Patient Vitals for Consultation View
+ */
+async function loadPatientForConsultation(appointmentId) {
     const display = document.getElementById('patientHistoryDisplay');
     const keluhanTextarea = document.getElementById('keluhan_pasien');
 
     display.innerHTML = '';
     keluhanTextarea.value = '';
 
-    if (!patientId) {
+    if (!appointmentId) {
         display.innerHTML = `<div class="empty-state"><p>Pilih pasien untuk melihat data.</p></div>`;
         return;
     }
 
-    // Find the most recent vitals record for this patient
-    const patientVitalsList = vitalsRecords.filter(v => v.patientId === patientId);
-    if (patientVitalsList.length > 0) {
-        const latest = patientVitalsList.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
-        const v = latest.data;
+    const select = document.getElementById('consultationPatientSelect');
+    const patientId = select.options[select.selectedIndex].dataset.patientId;
+
+    // Get latest vitals for this patient
+    const vitalsSnapshot = await firebaseDB.collection('medicalRecords')
+        .where('patientId', '==', patientId)
+        .where('type', '==', undefined) // Vitals don't have type field
+        .orderBy('date', 'desc')
+        .limit(1)
+        .get();
+
+    if (!vitalsSnapshot.empty) {
+        const vitals = vitalsSnapshot.docs[0].data();
         display.innerHTML = `
             <h4><i class="fas fa-notes-medical"></i> Catatan dari Perawat</h4>
             <div class="vitals-display">
-                <span><strong>Tinggi:</strong> ${v.tinggi_badan || '-'} cm</span>
-                <span><strong>Berat:</strong> ${v.berat_badan || '-'} kg</span>
-                <span><strong>Tensi:</strong> ${v.tensi_darah || '-'}</span>
-                <span><strong>Suhu:</strong> ${v.suhu_badan || '-'} °C</span>
+                <span><strong>Tinggi:</strong> ${vitals.tinggi_badan || '-'} cm</span>
+                <span><strong>Berat:</strong> ${vitals.berat_badan || '-'} kg</span>
+                <span><strong>Tensi:</strong> ${vitals.tensi_darah || '-'}</span>
+                <span><strong>Suhu:</strong> ${vitals.suhu_badan || '-'} °C</span>
             </div>
-            <p><strong>Keluhan Awal:</strong> ${v.keluhan_perawat || 'Tidak ada.'}</p>
-            <p class="vitals-timestamp"><em>Catatan perawat terakhir: ${new Date(latest.date).toLocaleString('id-ID')}</em></p>
+            <p><strong>Keluhan Awal:</strong> ${vitals.keluhan_perawat || 'Tidak ada.'}</p>
+            <p class="vitals-timestamp"><em>Catatan perawat terakhir: ${vitals.date.toDate().toLocaleString('id-ID')}</em></p>
         `;
-        keluhanTextarea.value = v.keluhan_perawat || '';
+        keluhanTextarea.value = vitals.keluhan_perawat || '';
     } else {
         display.innerHTML = `<div class="empty-state"><p>Data vital dari perawat belum diinput untuk pasien ini.</p></div>`;
     }
 }
 
-// Load patient history (medical records + vitals list)
-function loadPatientHistory(patientId) {
+/**
+ * Load Patient Medical History from Firebase
+ */
+async function loadPatientHistory(appointmentId) {
     const container = document.getElementById('patientHistoryList');
-    if (!patientId) {
+
+    if (!appointmentId) {
         container.innerHTML = `<div class="empty-state"><p>Pilih pasien untuk melihat riwayat medis.</p></div>`;
         return;
     }
 
-    const records = medicalRecords.filter(r => r.patientId === patientId).slice().reverse();
-    const vitals = vitalsRecords.filter(v => v.patientId === patientId).slice().reverse();
+    const select = document.getElementById('historyPatientSelect');
+    const patientId = select.options[select.selectedIndex].dataset.patientId;
 
-    if (records.length === 0 && vitals.length === 0) {
+    // Get all medical records for this patient
+    const recordsSnapshot = await firebaseDB.collection('medicalRecords')
+        .where('patientId', '==', patientId)
+        .orderBy('date', 'desc')
+        .get();
+
+    if (recordsSnapshot.empty) {
         container.innerHTML = `<div class="empty-state"><p>Tidak ada riwayat untuk pasien ini.</p></div>`;
         return;
     }
 
-    let html = '';
-    if (vitals.length > 0) {
-        html += `<h4>Catatan Vital (Perawat)</h4>`;
-        html += vitals.map(v => `
-            <div class="history-card">
-                <p><strong>Waktu:</strong> ${new Date(v.date).toLocaleString('id-ID')}</p>
-                <p><strong>Tinggi / Berat:</strong> ${v.data.tinggi_badan || '-'} cm / ${v.data.berat_badan || '-'} kg</p>
-                <p><strong>Tensi:</strong> ${v.data.tensi_darah || '-'}</p>
-                <p><strong>Suhu:</strong> ${v.data.suhu_badan || '-'}</p>
-                <p><strong>Keluhan Perawat:</strong> ${v.data.keluhan_perawat || '-'}</p>
-            </div>
-        `).join('');
-    }
+    let html = '<h4>Riwayat Medis</h4>';
 
-    if (records.length > 0) {
-        html += `<h4>Riwayat Pemeriksaan (Dokter)</h4>`;
-        html += records.map(r => `
-            <div class="history-card">
-                <p><strong>Tanggal:</strong> ${new Date(r.date).toLocaleString('id-ID')}</p>
-                <p><strong>Keluhan:</strong> ${r.keluhan}</p>
-                <p><strong>Hasil Pemeriksaan:</strong> ${r.hasil_pemeriksaan}</p>
-                <p><strong>Catatan Dokter:</strong> ${r.catatan_dokter || '-'}</p>
-                ${r.prescriptionItems && r.prescriptionItems.length ? `<p><strong>Resep:</strong> ${r.prescriptionItems.map(i=>i.medicineName+' x'+i.quantity).join(', ')}</p>` : ''}
-            </div>
-        `).join('');
-    }
+    recordsSnapshot.forEach(doc => {
+        const record = doc.data();
+        const date = record.date.toDate();
+
+        if (record.type === 'consultation') {
+            // Consultation record
+            html += `
+                <div class="history-card">
+                    <p><strong>Tanggal:</strong> ${date.toLocaleString('id-ID')}</p>
+                    <p><strong>Keluhan:</strong> ${record.keluhan}</p>
+                    <p><strong>Diagnosis:</strong> ${record.diagnosis}</p>
+                    <p><strong>Treatment:</strong> ${record.treatment || '-'}</p>
+                </div>
+            `;
+        } else {
+            // Vitals record
+            html += `
+                <div class="history-card">
+                    <p><strong>Waktu:</strong> ${date.toLocaleString('id-ID')}</p>
+                    <p><strong>Tinggi / Berat:</strong> ${record.tinggi_badan || '-'} cm / ${record.berat_badan || '-'} kg</p>
+                    <p><strong>Tensi:</strong> ${record.tensi_darah || '-'}</p>
+                    <p><strong>Suhu:</strong> ${record.suhu_badan || '-'}</p>
+                    <p><strong>Keluhan Perawat:</strong> ${record.keluhan_perawat || '-'}</p>
+                </div>
+            `;
+        }
+    });
 
     container.innerHTML = html;
 }
 
 // --- Prescription Item Management ---
 
-function populateMedicineSelect() {
+async function populateMedicineSelect() {
     const select = document.getElementById('prescriptionMedicineSelect');
     if (!select) return;
-    const medicines = JSON.parse(localStorage.getItem('medicines') || '[]');
+
+    const medicines = await getMedicines();
     medicines.forEach(med => {
         if (med.stok > 0) {
             const option = document.createElement('option');
@@ -396,7 +411,7 @@ function populateMedicineSelect() {
 function addMedicineToPrescription() {
     const medicineSelect = document.getElementById('prescriptionMedicineSelect');
     const quantityInput = document.getElementById('prescriptionQuantity');
-    
+
     const medicineId = medicineSelect.value;
     const quantity = parseInt(quantityInput.value);
 
@@ -408,7 +423,6 @@ function addMedicineToPrescription() {
     const selectedOption = medicineSelect.options[medicineSelect.selectedIndex];
     const medicineName = selectedOption.dataset.name;
 
-    // Check if item already exists
     const existingItem = currentPrescriptionItems.find(item => item.medicineId === medicineId);
     if (existingItem) {
         existingItem.quantity += quantity;
@@ -420,7 +434,7 @@ function addMedicineToPrescription() {
             quantity: quantity
         });
     }
-    
+
     renderCurrentPrescription();
 }
 
@@ -454,7 +468,6 @@ function renderCurrentPrescription() {
     `;
 }
 
-
 // --- Helper Functions ---
 
 function resetVitalsForm() {
@@ -469,18 +482,18 @@ function resetConsultationForm() {
     togglePrescriptionForm();
 }
 
-function togglePrescriptionForm() {
+function togglePres criptionForm() {
     const checkbox = document.getElementById('needsPrescription');
     const form = document.getElementById('prescriptionForm');
-    if(form) form.style.display = checkbox.checked ? 'block' : 'none';
+    if (form) form.style.display = checkbox.checked ? 'block' : 'none';
     if (checkbox.checked) {
-        renderCurrentPrescription(); // Initial render when shown
+        renderCurrentPrescription();
     }
 }
 
-function refreshExaminationQueue() {
-    displayExaminationQueue();
-    populatePatientSelects();
+async function refreshExaminationQueue() {
+    await displayExaminationQueue();
+    await populatePatientSelects();
 }
 
 function getStatusInfo(status) {
@@ -495,4 +508,4 @@ function getStatusInfo(status) {
     return statusMap[status] || { text: status, class: 'status-unknown' };
 }
 
-
+console.log('✅ Examination.js (Firebase) loaded successfully!');

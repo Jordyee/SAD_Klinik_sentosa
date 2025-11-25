@@ -1,6 +1,11 @@
+// ========================================================================
+// PATIENT REGISTRATION - FIREBASE VERSION
+// ========================================================================
+// Updated to work with Firebase Firestore async operations
+
 // --- Page Initialization and Role Handling ---
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function () {
     if (!requireRole(['admin', 'pasien'])) {
         return;
     }
@@ -9,22 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (user && user.role === 'admin') {
         const adminOnlyTabs = document.querySelectorAll('.admin-only');
         adminOnlyTabs.forEach(tab => tab.style.display = 'inline-flex');
-        displayUserList();
+        await displayUserList();
     }
 
-    handlePatientRoleView();
-    setupFormListeners();
-    displayQueue();
+    await handlePatientRoleView();
+    await setupFormListeners();
+    await displayQueue();
 });
 
 // Handle UI for patient vs admin
-function handlePatientRoleView() {
+async function handlePatientRoleView() {
     const user = getCurrentUser();
     if (!user || user.role !== 'pasien') {
         return;
     }
 
-    const existingPatientData = findPatientByUsername(user.username);
+    const existingPatientData = await findPatientByUsername(user.username);
     const newPatientTab = document.querySelector('.tab-btn[data-tab="new"]');
     const existingPatientTabButton = document.querySelector('.tab-btn[data-tab="existing"]');
     const registrationInfo = document.getElementById('registrationInfo');
@@ -33,10 +38,10 @@ function handlePatientRoleView() {
         // Hide the "New Patient" tab button and its content
         if (newPatientTab) newPatientTab.style.display = 'none';
         document.getElementById('new-tab').classList.remove('active');
-        
+
         // Update the info message
         const infoContainer = document.getElementById('new-tab').querySelector('.form-container');
-        if(infoContainer) {
+        if (infoContainer) {
             infoContainer.innerHTML = `<div class="info-static"><h3>Data Pasien Anda Sudah Terdaftar</h3><p>Gunakan tab "Pasien Lama" untuk masuk antrian.</p></div>`;
         }
 
@@ -54,19 +59,19 @@ function handlePatientRoleView() {
 
 // --- Form and Event Listeners ---
 
-function setupFormListeners() {
+async function setupFormListeners() {
     const newPatientForm = document.getElementById('newPatientForm');
     if (newPatientForm) newPatientForm.addEventListener('submit', handleNewPatientSubmit);
 
     const createUserForm = document.getElementById('createUserForm');
     if (createUserForm) createUserForm.addEventListener('submit', handleCreateUserSubmit);
 
-    // New, robust tab switching logic
+    // Tab switching logic
     const tabs = document.querySelectorAll('.tabs .tab-btn');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
-            
+
             // Deactivate all tabs and content
             tabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -78,40 +83,59 @@ function setupFormListeners() {
     });
 }
 
-function handleNewPatientSubmit(e) {
+/**
+ * Handle New Patient Registration (FIREBASE)
+ */
+async function handleNewPatientSubmit(e) {
     e.preventDefault();
     const user = getCurrentUser();
     let linkedUsername = (user && user.role === 'pasien') ? user.username : null;
 
-    if (linkedUsername && findPatientByUsername(linkedUsername)) {
-        Swal.fire('Info', 'Anda sudah mendaftarkan data pasien.', 'info');
-        return;
+    if (linkedUsername) {
+        const existing = await findPatientByUsername(linkedUsername);
+        if (existing) {
+            Swal.fire('Info', 'Anda sudah mendaftarkan data pasien.', 'info');
+            return;
+        }
     }
 
-    let allPatientData = getAllPatientData();
-    const newPatientRecord = {
+    const newPatientData = {
         linkedUsername: linkedUsername,
-        patientId: 'P' + String(allPatientData.length + 1).padStart(3, '0'),
         nama: document.getElementById('nama').value,
         alamat: document.getElementById('alamat').value,
         no_telp: document.getElementById('no_telp').value,
         status_pasien: document.getElementById('status_pasien').value
     };
 
-    allPatientData.push(newPatientRecord);
-    saveAllPatientData(allPatientData);
-    const queueItem = addToQueue(newPatientRecord);
+    // Save to Firebase
+    const result = await savePatientData(newPatientData);
 
-    Swal.fire({
-        title: 'Pendaftaran Berhasil!',
-        html: `ID Pasien: <strong>${newPatientRecord.patientId}</strong><br>Nomor Antrian: <strong>#${queueItem.queueNumber}</strong>`,
-        icon: 'success'
+    if (!result.success) {
+        Swal.fire('Gagal', 'Gagal menyimpan data pasien: ' + result.error, 'error');
+        return;
+    }
+
+    const patientId = result.id;
+
+    // Add to queue (appointment)
+    const queueItem = await addToQueue({
+        id: patientId,
+        patientId: patientId,
+        ...newPatientData
     });
-    
-    if(linkedUsername) handlePatientRoleView();
-    else resetForm('newPatientForm');
-    
-    displayQueue();
+
+    if (queueItem) {
+        Swal.fire({
+            title: 'Pendaftaran Berhasil!',
+            html: `ID Pasien: <strong>${patientId}</strong><br>Nomor Antrian: <strong>#${queueItem.queueNumber}</strong>`,
+            icon: 'success'
+        });
+
+        if (linkedUsername) await handlePatientRoleView();
+        else resetForm('newPatientForm');
+
+        await displayQueue();
+    }
 }
 
 async function handleCreateUserSubmit(e) {
@@ -122,17 +146,17 @@ async function handleCreateUserSubmit(e) {
     const password = form.querySelector('#newPassword').value;
     const role = form.querySelector('#newRole').value;
 
-    if(!username || !email || !password || !role) {
+    if (!username || !email || !password || !role) {
         Swal.fire('Peringatan', 'Semua field wajib diisi.', 'warning');
         return;
     }
 
     const result = await createUser(username, email, password, role, username);
-    
+
     if (result.success) {
         Swal.fire('Berhasil', result.message, 'success');
         closeCreateUserModal();
-        displayUserList();
+        await displayUserList();
     } else {
         Swal.fire('Gagal', result.message, 'error');
     }
@@ -183,7 +207,7 @@ function deleteUser(username) {
             const removeResult = await removeUser(username);
             if (removeResult.success) {
                 Swal.fire('Dihapus!', removeResult.message, 'success');
-                displayUserList();
+                await displayUserList();
             } else {
                 Swal.fire('Gagal', removeResult.message, 'error');
             }
@@ -193,18 +217,22 @@ function deleteUser(username) {
 
 
 // --- Patient Search (for Pasien Lama tab) ---
-function searchPatient(query) {
+async function searchPatient(query) {
     const resultsContainer = document.getElementById('searchResults');
-    const allPatientData = getAllPatientData();
+
     if (!query) {
         resultsContainer.innerHTML = `<div class="empty-state"><p>Masukkan kata kunci untuk mencari pasien.</p></div>`;
         return;
     }
+
+    const allPatientData = await getAllPatientData();
     const results = allPatientData.filter(p => p.nama.toLowerCase().includes(query.toLowerCase()));
+
     if (results.length === 0) {
         resultsContainer.innerHTML = `<div class="empty-state"><p>Pasien tidak ditemukan.</p></div>`;
         return;
     }
+
     resultsContainer.innerHTML = results.map(patient => `
         <div class="patient-card">
             <h4>${patient.nama} (ID: ${patient.patientId})</h4>
@@ -214,33 +242,49 @@ function searchPatient(query) {
 }
 
 // --- Queue Management ---
-function selectPatient(patientId) {
-    const patient = findPatientById(patientId);
+async function selectPatient(patientId) {
+    const patient = await findPatientById(patientId);
     if (patient) {
-        const queueItem = addToQueue(patient);
-        if (queueItem) { // Only show success if they were actually added
+        const queueItem = await addToQueue(patient);
+        if (queueItem) {
             Swal.fire('Berhasil', `Pasien ${patient.nama} telah ditambahkan ke antrian dengan nomor #${queueItem.queueNumber}.`, 'success');
         }
-        displayQueue();
+        await displayQueue();
     }
 }
 
-function addToQueue(patient) {
-    const queue = getQueue();
-    if (queue.some(item => item.patient.patientId === patient.patientId && item.status !== 'Selesai')) {
+async function addToQueue(patient) {
+    const queue = await getQueue();
+
+    // Check if patient already in active queue
+    const existingInQueue = queue.find(item =>
+        item.patientId === patient.patientId &&
+        item.status !== 'Selesai'
+    );
+
+    if (existingInQueue) {
         Swal.fire('Info', 'Pasien sudah ada di dalam antrian aktif.', 'info');
-        return null; // Return null to indicate patient was not added
+        return null;
     }
-    const queueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queueNumber)) + 1 : 1;
-    const queueItem = {
+
+    const queueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queueNumber || 0)) + 1 : 1;
+
+    const appointmentData = {
         queueNumber,
-        patient,
+        patientId: patient.patientId || patient.id,
+        patientName: patient.nama,
         status: 'Menunggu Pemeriksaan',
-        registeredAt: new Date().toISOString()
+        date: new Date(),
+        time: new Date().toLocaleTimeString('id-ID')
     };
-    queue.push(queueItem);
-    saveQueue(queue);
-    return queueItem;
+
+    const result = await saveToQueue(appointmentData);
+
+    if (result.success) {
+        return { queueNumber, id: result.id };
+    }
+
+    return null;
 }
 
 function getStatusInfo(status) {
@@ -255,28 +299,29 @@ function getStatusInfo(status) {
     return statusMap[status] || { text: status, class: 'status-unknown' };
 }
 
-function displayQueue() {
+async function displayQueue() {
     const queueList = document.getElementById('queueList');
-    const queue = getQueue().filter(item => item.status !== 'Selesai');
+    const queue = await getQueue();
+    const activeQueue = queue.filter(item => item.status !== 'Selesai');
     const currentUser = getCurrentUser();
-    
-    if (queue.length === 0) {
+
+    if (activeQueue.length === 0) {
         queueList.innerHTML = `<div class="empty-state"><p>Belum ada pasien dalam antrian aktif.</p></div>`;
         return;
     }
 
-    queueList.innerHTML = queue.map(item => {
+    queueList.innerHTML = activeQueue.map(item => {
         const statusInfo = getStatusInfo(item.status);
-        const adminButton = (currentUser && currentUser.role === 'admin') 
-            ? `<button class="btn-action btn-sm" onclick="showPatientDetails('${item.patient.patientId}')"><i class="fas fa-eye"></i> Detail</button>`
+        const adminButton = (currentUser && currentUser.role === 'admin')
+            ? `<button class="btn-action btn-sm" onclick="showPatientDetails('${item.patientId}')"><i class="fas fa-eye"></i> Detail</button>`
             : '';
 
         return `
             <div class="queue-item">
                 <div class="queue-number">#${item.queueNumber}</div>
                 <div class="queue-info">
-                    <div class="queue-name">${item.patient.nama}</div>
-                    <div class="queue-details">ID: ${item.patient.patientId}</div>
+                    <div class="queue-name">${item.patientName}</div>
+                    <div class="queue-details">ID: ${item.patientId}</div>
                 </div>
                 <div class="queue-status ${statusInfo.class}">${statusInfo.text}</div>
                 <div class="queue-actions">${adminButton}</div>
@@ -285,13 +330,14 @@ function displayQueue() {
     }).join('');
 }
 
-function showPatientDetails(patientId) {
+async function showPatientDetails(patientId) {
     const modal = document.getElementById('patientDetailModal');
     const body = document.getElementById('patientDetailBody');
     const nameEl = document.getElementById('modalPatientName');
 
-    const patientData = findPatientById(patientId);
-    const queueItem = getQueue().find(item => item.patient.patientId === patientId);
+    const patientData = await findPatientById(patientId);
+    const queue = await getQueue();
+    const queueItem = queue.find(item => item.patientId === patientId);
 
     if (!patientData || !modal || !body || !nameEl) {
         console.error('Could not find patient data or modal elements.');
@@ -309,7 +355,7 @@ function showPatientDetails(patientId) {
             <hr>
             <div><strong>No. Antrian:</strong></div><div>#${queueItem ? queueItem.queueNumber : 'N/A'}</div>
             <div><strong>Status Saat Ini:</strong></div><div>${queueItem ? queueItem.status : 'N/A'}</div>
-            <div><strong>Waktu Daftar:</strong></div><div>${queueItem ? new Date(queueItem.registeredAt).toLocaleString('id-ID') : 'N/A'}</div>
+            <div><strong>Waktu Daftar:</strong></div><div>${queueItem && queueItem.createdAt ? new Date(queueItem.createdAt.toDate()).toLocaleString('id-ID') : 'N/A'}</div>
         </div>
     `;
 
@@ -318,16 +364,12 @@ function showPatientDetails(patientId) {
 
 function closePatientDetailModal() {
     const modal = document.getElementById('patientDetailModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
 function openCreateUserModal() {
     const modal = document.getElementById('createUserModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    if (modal) modal.style.display = 'block';
 }
 
 function closeCreateUserModal() {
@@ -338,8 +380,8 @@ function closeCreateUserModal() {
     }
 }
 
-function refreshQueue() {
-    displayQueue();
+async function refreshQueue() {
+    await displayQueue();
 }
 
 function resetForm(formId) {
@@ -347,5 +389,4 @@ function resetForm(formId) {
     if (form) form.reset();
 }
 
-
-
+console.log('✅ Register.js (Firebase) loaded successfully!');
