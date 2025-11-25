@@ -1,0 +1,170 @@
+[
+  {
+    "id": "midzzdvo1ja60nrz122",
+    "name": "Paracetamol",
+    "category": "Analgesik",
+    "stock": 96,
+    "price": 5000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med001",
+    "name": "Amoxicillin 500mg",
+    "category": "Antibiotik",
+    "stock": 50,
+    "price": 15000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med002",
+    "name": "Ibuprofen 400mg",
+    "category": "Analgesik",
+    "stock": 75,
+    "price": 8000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med003",
+    "name": "Antasida Sirup",
+    "category": "Obat Maag",
+    "stock": 60,
+    "price": 12000,
+    "unit": "Botol"
+  },
+  {
+    "id": "med004",
+    "name": "Vitamin C 1000mg",
+    "category": "Suplemen",
+    "stock": 95,
+    "price": 25000,
+    "unit": "Botol"
+  },
+  {
+    "id": "med005",
+    "name": "Cetirizine 10mg",
+    "category": "Antihistamin",
+    "stock": 40,
+    "price": 10000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med006",
+    "name": "Omeprazole 20mg",
+    "category": "Obat Maag",
+    "stock": 30,
+    "price": 18000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med007",
+    "name": "Salbutamol Inhaler",
+    "category": "Obat Asma",
+    "stock": 25,
+    "price": 45000,
+    "unit": "Inhaler"
+  },
+  {
+    "id": "med008",
+    "name": "Metformin 500mg",
+    "category": "Antidiabetes",
+    "stock": 55,
+    "price": 20000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med009",
+    "name": "Captopril 25mg",
+    "category": "Antihipertensi",
+    "stock": 45,
+    "price": 12000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med010",
+    "name": "Dexamethasone 0.5mg",
+    "category": "Kortikosteroid",
+    "stock": 32,
+    "price": 8000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med011",
+    "name": "Loratadine 10mg",
+    "category": "Antihistamin",
+    "stock": 65,
+    "price": 15000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med012",
+    "name": "Asam Mefenamat 500mg",
+    "category": "Analgesik",
+    "stock": 80,
+    "price": 7000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med013",
+    "name": "Ciprofloxacin 500mg",
+    "category": "Antibiotik",
+    "stock": 28,
+    "price": 22000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med014",
+    "name": "Ranitidine 150mg",
+    "category": "Obat Maag",
+    "stock": 42,
+    "price": 9000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med015",
+    "name": "Multivitamin",
+    "category": "Suplemen",
+    "stock": 90,
+    "price": 35000,
+    "unit": "Botol"
+  },
+  {
+    "id": "med016",
+    "name": "Betadine Solution",
+    "category": "Antiseptik",
+    "stock": 50,
+    "price": 18000,
+    "unit": "Botol"
+  },
+  {
+    "id": "med017",
+    "name": "Obat Batuk Hitam",
+    "category": "Obat Batuk",
+    "stock": 66,
+    "price": 15000,
+    "unit": "Botol"
+  },
+  {
+    "id": "med018",
+    "name": "Promag Tablet",
+    "category": "Obat Maag",
+    "stock": 85,
+    "price": 6000,
+    "unit": "Strip"
+  },
+  {
+    "id": "med019",
+    "name": "Neuralgin",
+    "category": "Analgesik",
+    "stock": 60,
+    "price": 5500,
+    "unit": "Strip"
+  },
+  {
+    "id": "med020",
+    "name": "Sangobion",
+    "category": "Suplemen",
+    "stock": 75,
+    "price": 28000,
+    "unit": "Strip"
+  }
+]

@@ -1,105 +1,112 @@
-// --- User Database Management (Simulated with localStorage) ---
+// --- User Database Management (API Integration) ---
 
 // Initialize the user database if it doesn't exist
+// DEPRECATED: Users are now managed by the backend.
 function initializeUsers() {
-    if (!localStorage.getItem('klinikUsers')) {
-        const demoAccounts = [
-            { username: 'pasien', email: 'pasien@klinik.com', password: 'pasien123', role: 'pasien' },
-            { username: 'admin', email: 'admin@klinik.com', password: 'admin123', role: 'admin' },
-            { username: 'dokter', email: 'dokter@klinik.com', password: 'dokter123', role: 'dokter' },
-            { username: 'perawat', email: 'perawat@klinik.com', password: 'perawat123', role: 'perawat' },
-            { username: 'apotek', email: 'apotek@klinik.com', password: 'apotek123', role: 'apotek' },
-            { username: 'pemilik', email: 'pemilik@klinik.com', password: 'pemilik123', role: 'pemilik' }
-        ];
-        localStorage.setItem('klinikUsers', JSON.stringify(demoAccounts));
+    console.log('User initialization handled by backend.');
+}
+
+// Get all users from API
+async function getUsers() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/users`);
+        if (!response.ok) throw new Error('Failed to fetch users');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
     }
-}
-
-// Get all users from localStorage
-function getUsers() {
-    return JSON.parse(localStorage.getItem('klinikUsers')) || [];
-}
-
-// Save users to localStorage
-function saveUsers(users) {
-    localStorage.setItem('klinikUsers', JSON.stringify(users));
 }
 
 // Authenticate user
-function authenticateUser(username, password, role) {
-    const users = getUsers();
-    const user = users.find(u => u.username === username && u.password === password && u.role === role);
-    
-    if (user) {
-        // On successful login, create a session
-        const userSession = {
-            username: user.username,
-            role: user.role,
-            loginTime: new Date().toISOString()
-        };
-        localStorage.setItem('userSession', JSON.stringify(userSession));
-        return user;
+async function authenticateUser(username, password, role) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // On successful login, create a session
+            const userSession = {
+                id: data.user.id,
+                username: data.user.username,
+                role: data.user.role,
+                fullName: data.user.fullName,
+                loginTime: new Date().toISOString()
+            };
+            localStorage.setItem('userSession', JSON.stringify(userSession));
+            return userSession;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        return null;
     }
-    
-    // If no exact match is found, return null.
-    return null;
 }
 
-// Find user by username or email
-function findUserByUsernameOrEmail(username, email) {
-    const users = getUsers();
-    return users.find(u => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase());
-}
+// Register a new user (Pasien)
+async function registerUser(username, email, password) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                email,
+                password,
+                role: 'pasien',
+                fullName: username // Default fullName to username for now
+            })
+        });
 
-// Register a new user
-function registerUser(username, email, password) {
-    if (findUserByUsernameOrEmail(username, email)) {
-        return { success: false, message: 'Username atau email sudah terdaftar.' };
+        const data = await response.json();
+        return data; // { success: true/false, message: ... }
+    } catch (error) {
+        console.error('Registration error:', error);
+        return { success: false, message: 'Terjadi kesalahan koneksi.' };
     }
-    const users = getUsers();
-    const newUser = {
-        username,
-        email,
-        password,
-        role: 'pasien' // New registrations are always for patients
-    };
-    users.push(newUser);
-    saveUsers(users);
-    return { success: true, message: 'Registrasi berhasil! Silakan login.' };
 }
 
 // Create a new user (for Admins)
-function createUser(username, email, password, role) {
-    if (!['admin', 'dokter', 'perawat', 'apotek', 'pemilik'].includes(role)) {
-        return { success: false, message: 'Role tidak valid.' };
+async function createUser(username, email, password, role) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                email,
+                password,
+                role,
+                fullName: username
+            })
+        });
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Create user error:', error);
+        return { success: false, message: 'Terjadi kesalahan koneksi.' };
     }
-    if (findUserByUsernameOrEmail(username, email)) {
-        return { success: false, message: 'Username atau email sudah terdaftar.' };
-    }
-    const users = getUsers();
-    const newUser = { username, email, password, role };
-    users.push(newUser);
-    saveUsers(users);
-    return { success: true, message: `Akun untuk role ${role} berhasil dibuat.` };
 }
 
 // Remove a user (for Admins)
-function removeUser(username) {
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.username === username) {
-        return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri.' };
+async function removeUser(userId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Delete user error:', error);
+        return { success: false, message: 'Terjadi kesalahan koneksi.' };
     }
-
-    let users = getUsers();
-    const initialLength = users.length;
-    users = users.filter(user => user.username !== username);
-
-    if (users.length === initialLength) {
-        return { success: false, message: 'Pengguna tidak ditemukan.' };
-    }
-
-    saveUsers(users);
-    return { success: true, message: `Pengguna ${username} berhasil dihapus.` };
 }
 
 
@@ -139,13 +146,13 @@ function logout() {
 // Check role and redirect if not authorized
 function requireRole(allowedRoles) {
     const currentRole = getCurrentRole();
-    
+
     if (!currentRole) {
         const inPagesFolder = window.location.pathname.includes('/pages/');
         window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
         return false;
     }
-    
+
     if (!allowedRoles.includes(currentRole)) {
         Swal.fire({
             title: 'Akses Ditolak!',
@@ -158,7 +165,7 @@ function requireRole(allowedRoles) {
         });
         return false;
     }
-    
+
     return true;
 }
 
@@ -167,7 +174,7 @@ function redirectBasedOnRole(role) {
     const inPagesFolder = window.location.pathname.includes('/pages/');
     const base = inPagesFolder ? '' : 'pages/';
 
-    switch(role) {
+    switch (role) {
         case 'pasien':
             window.location.href = inPagesFolder ? '../index.html' : 'index.html';
             break;
@@ -223,16 +230,16 @@ function updateUIForRole() {
     if (!user) {
         const userIcon = document.querySelector('.user-icon');
         if (userIcon) {
-            userIcon.onclick = function() {
+            userIcon.onclick = function () {
                 const inPagesFolder = window.location.pathname.includes('/pages/');
                 window.location.href = inPagesFolder ? 'login.html' : 'pages/login.html';
             };
         }
         return;
     }
-    
+
     const role = user.role;
-    
+
     const userIcon = document.querySelector('.user-icon');
     if (userIcon) {
         userIcon.innerHTML = `
@@ -241,7 +248,7 @@ function updateUIForRole() {
         `;
         userIcon.title = `Masuk sebagai: ${getRoleDisplayName(role)}`;
     }
-    
+
     hideUnauthorizedElements(role);
     setupUserIcon();
 }
@@ -249,24 +256,29 @@ function updateUIForRole() {
 // Hide elements not accessible by current role
 function hideUnauthorizedElements(role) {
     const rolePermissions = {
-        'pasien': { show: ['register'], hide: ['examination', 'pharmacy', 'reports'] },
+        'pasien': { show: ['register'], hide: ['examination', 'pharmacy', 'reports', 'billing'] },
         'admin': { show: ['register', 'billing', 'reports'], hide: ['examination', 'pharmacy'] },
         'dokter': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
         'perawat': { show: ['examination'], hide: ['register', 'pharmacy', 'billing', 'reports'] },
         'apotek': { show: ['pharmacy'], hide: ['register', 'examination', 'billing', 'reports'] },
         'pemilik': { show: ['reports'], hide: ['register', 'examination', 'pharmacy', 'billing'] }
     };
-    
+
     const permissions = rolePermissions[role];
     if (!permissions) return;
-    
-    // Hide nav links
+
+    // Hide nav links and buttons
     permissions.hide.forEach(page => {
+        // Hide links
         const links = document.querySelectorAll(`a[href*="${page}"]`);
         links.forEach(link => {
-            if (link.parentElement.tagName === 'LI' || link.parentElement.classList.contains('nav-left')) {
-                link.style.display = 'none';
-            }
+            link.style.display = 'none';
+        });
+
+        // Hide buttons that navigate to this page (e.g. Billing button)
+        const buttons = document.querySelectorAll(`button[onclick*="${page}"]`);
+        buttons.forEach(btn => {
+            btn.style.display = 'none';
         });
     });
 
@@ -335,10 +347,8 @@ function setupUserIcon() {
 
 // Initialize on page load
 if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeUsers(); // Ensure users DB is initialized
+    document.addEventListener('DOMContentLoaded', function () {
+        // initializeUsers(); // No longer needed
         updateUIForRole();
     });
 }
-
-

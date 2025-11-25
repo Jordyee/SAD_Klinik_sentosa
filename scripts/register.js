@@ -1,6 +1,7 @@
 // --- Page Initialization and Role Handling ---
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Register.js loaded - Version 2 (API Integration)');
     if (!requireRole(['admin', 'pasien'])) {
         return;
     }
@@ -18,13 +19,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Handle UI for patient vs admin
-function handlePatientRoleView() {
+async function handlePatientRoleView() {
     const user = getCurrentUser();
     if (!user || user.role !== 'pasien') {
         return;
     }
 
-    const existingPatientData = findPatientByUsername(user.username);
+    // Check if patient data exists for this user
+    // We assume username is unique and can be used to find patient if linked
+    // In the new backend, we might need a way to link user to patient explicitly.
+    // For now, let's search by name matching username or NIK if we had it.
+    // The backend `getPatients` supports search.
+
+    // Strategy: Search for patient with name == user.fullName (which is username for now)
+    // Or, we can just let them register.
+    // If we want to prevent double registration, we should check.
+
+    const patients = await fetchPatients(user.username);
+    const existingPatientData = patients.find(p => p.name.toLowerCase() === user.username.toLowerCase());
+
     const newPatientTab = document.querySelector('.tab-btn[data-tab="new"]');
     const existingPatientTabButton = document.querySelector('.tab-btn[data-tab="existing"]');
     const registrationInfo = document.getElementById('registrationInfo');
@@ -33,10 +46,10 @@ function handlePatientRoleView() {
         // Hide the "New Patient" tab button and its content
         if (newPatientTab) newPatientTab.style.display = 'none';
         document.getElementById('new-tab').classList.remove('active');
-        
+
         // Update the info message
         const infoContainer = document.getElementById('new-tab').querySelector('.form-container');
-        if(infoContainer) {
+        if (infoContainer) {
             infoContainer.innerHTML = `<div class="info-static"><h3>Data Pasien Anda Sudah Terdaftar</h3><p>Gunakan tab "Pasien Lama" untuk masuk antrian.</p></div>`;
         }
 
@@ -66,7 +79,7 @@ function setupFormListeners() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
-            
+
             // Deactivate all tabs and content
             tabs.forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -76,45 +89,79 @@ function setupFormListeners() {
             document.getElementById(`${tabName}-tab`).classList.add('active');
         });
     });
+
+    // Search Listener
+    const searchInput = document.getElementById('patientSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchPatient(e.target.value);
+        });
+    }
 }
 
-function handleNewPatientSubmit(e) {
+async function handleNewPatientSubmit(e) {
     e.preventDefault();
     const user = getCurrentUser();
-    let linkedUsername = (user && user.role === 'pasien') ? user.username : null;
 
-    if (linkedUsername && findPatientByUsername(linkedUsername)) {
-        Swal.fire('Info', 'Anda sudah mendaftarkan data pasien.', 'info');
+    const patientData = {
+        nik: 'NIK-' + Date.now(),
+        name: document.getElementById('nama').value,
+        address: document.getElementById('alamat').value,
+        phone: document.getElementById('no_telp').value,
+        dob: '1990-01-01', // Default
+        gender: 'L', // Default
+        insuranceType: document.getElementById('status_pasien').value
+    };
+
+    if (!patientData.name || !patientData.address || !patientData.phone || !patientData.insuranceType) {
+        Swal.fire('Peringatan', 'Mohon lengkapi semua data wajib (*)', 'warning');
         return;
     }
 
-    let allPatientData = getAllPatientData();
-    const newPatientRecord = {
-        linkedUsername: linkedUsername,
-        patientId: 'P' + String(allPatientData.length + 1).padStart(3, '0'),
-        nama: document.getElementById('nama').value,
-        alamat: document.getElementById('alamat').value,
-        no_telp: document.getElementById('no_telp').value,
-        status_pasien: document.getElementById('status_pasien').value
-    };
+    try {
+        // 1. Register Patient
+        const response = await fetch(`${API_BASE_URL}/patients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patientData)
+        });
+        const result = await response.json();
 
-    allPatientData.push(newPatientRecord);
-    saveAllPatientData(allPatientData);
-    const queueItem = addToQueue(newPatientRecord);
+        if (!result.success) {
+            throw new Error(result.message);
+        }
 
-    Swal.fire({
-        title: 'Pendaftaran Berhasil!',
-        html: `ID Pasien: <strong>${newPatientRecord.patientId}</strong><br>Nomor Antrian: <strong>#${queueItem.queueNumber}</strong>`,
-        icon: 'success'
-    });
-    
-    if(linkedUsername) handlePatientRoleView();
-    else resetForm('newPatientForm');
-    
-    displayQueue();
+        const newPatient = result.patient;
+
+        // 2. Add to Queue
+        const queueResponse = await fetch(`${API_BASE_URL}/patients/visits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId: newPatient.id })
+        });
+        const queueResult = await queueResponse.json();
+
+        if (!queueResult.success) {
+            throw new Error(queueResult.message);
+        }
+
+        Swal.fire({
+            title: 'Pendaftaran Berhasil!',
+            html: `ID Pasien: <strong>${newPatient.id}</strong><br>Nomor Antrian: <strong>#${queueResult.visit.queueNumber}</strong>`,
+            icon: 'success'
+        });
+
+        if (user && user.role === 'pasien') handlePatientRoleView();
+        else resetForm('newPatientForm');
+
+        displayQueue();
+
+    } catch (error) {
+        Swal.fire('Gagal', error.message, 'error');
+    }
 }
 
-function handleCreateUserSubmit(e) {
+async function handleCreateUserSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const username = form.querySelector('#newUsername').value;
@@ -122,13 +169,14 @@ function handleCreateUserSubmit(e) {
     const password = form.querySelector('#newPassword').value;
     const role = form.querySelector('#newRole').value;
 
-    if(!username || !email || !password || !role) {
+    if (!username || !email || !password || !role) {
         Swal.fire('Peringatan', 'Semua field wajib diisi.', 'warning');
         return;
     }
 
-    const result = createUser(username, email, password, role);
-    
+    // Use the function from auth.js which now calls API
+    const result = await createUser(username, email, password, role);
+
     if (result.success) {
         Swal.fire('Berhasil', result.message, 'success');
         form.reset();
@@ -139,11 +187,12 @@ function handleCreateUserSubmit(e) {
 }
 
 // --- User Management (Admin) ---
-function displayUserList() {
+async function displayUserList() {
     const userListContainer = document.getElementById('userList');
     if (!userListContainer) return;
 
-    const users = getUsers();
+    // Use getUsers from auth.js (API)
+    const users = await getUsers();
     const currentUser = getCurrentUser();
 
     userListContainer.innerHTML = `
@@ -153,11 +202,11 @@ function displayUserList() {
                 ${users.map(user => `
                     <tr>
                         <td>${user.username}</td>
-                        <td>${user.email}</td>
+                        <td>${user.email || '-'}</td>
                         <td>${user.role}</td>
                         <td>
                             ${user.username !== currentUser.username ? `
-                            <button class="btn-action btn-danger" onclick="deleteUser('${user.username}')">
+                            <button class="btn-action btn-danger" onclick="deleteUser('${user.id}')">
                                 <i class="fas fa-trash"></i> Hapus
                             </button>` : 'Tidak ada aksi'}
                         </td>
@@ -168,9 +217,9 @@ function displayUserList() {
     `;
 }
 
-function deleteUser(username) {
+function deleteUser(userId) {
     Swal.fire({
-        title: `Yakin ingin menghapus pengguna ${username}?`,
+        title: `Yakin ingin menghapus pengguna?`,
         text: "Aksi ini tidak dapat dibatalkan!",
         icon: 'warning',
         showCancelButton: true,
@@ -178,9 +227,9 @@ function deleteUser(username) {
         cancelButtonColor: '#3085d6',
         confirmButtonText: 'Ya, hapus!',
         cancelButtonText: 'Batal'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            const removeResult = removeUser(username);
+            const removeResult = await removeUser(userId); // from auth.js
             if (removeResult.success) {
                 Swal.fire('Dihapus!', removeResult.message, 'success');
                 displayUserList();
@@ -193,73 +242,87 @@ function deleteUser(username) {
 
 
 // --- Patient Search (for Pasien Lama tab) ---
-function searchPatient(query) {
+async function fetchPatients(query) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients?search=${query}`);
+        if (!response.ok) throw new Error('Failed to fetch patients');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching patients:', error);
+        return [];
+    }
+}
+
+async function searchPatient(query) {
     const resultsContainer = document.getElementById('searchResults');
-    const allPatientData = getAllPatientData();
     if (!query) {
         resultsContainer.innerHTML = `<div class="empty-state"><p>Masukkan kata kunci untuk mencari pasien.</p></div>`;
         return;
     }
-    const results = allPatientData.filter(p => p.nama.toLowerCase().includes(query.toLowerCase()));
+
+    const results = await fetchPatients(query);
+
     if (results.length === 0) {
         resultsContainer.innerHTML = `<div class="empty-state"><p>Pasien tidak ditemukan.</p></div>`;
         return;
     }
     resultsContainer.innerHTML = results.map(patient => `
         <div class="patient-card">
-            <h4>${patient.nama} (ID: ${patient.patientId})</h4>
-            <button class="btn-submit" onclick="selectPatient('${patient.patientId}')"><i class="fas fa-plus"></i> Tambah ke Antrian</button>
+            <h4>${patient.name} (ID: ${patient.id})</h4>
+            <p>NIK: ${patient.nik}</p>
+            <button class="btn-submit" onclick="selectPatient('${patient.id}')"><i class="fas fa-plus"></i> Tambah ke Antrian</button>
         </div>
     `).join('');
 }
 
 // --- Queue Management ---
-function selectPatient(patientId) {
-    const patient = findPatientById(patientId);
-    if (patient) {
-        const queueItem = addToQueue(patient);
-        if (queueItem) { // Only show success if they were actually added
-            Swal.fire('Berhasil', `Pasien ${patient.nama} telah ditambahkan ke antrian dengan nomor #${queueItem.queueNumber}.`, 'success');
+async function selectPatient(patientId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/visits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire('Berhasil', `Pasien telah ditambahkan ke antrian dengan nomor #${result.visit.queueNumber}.`, 'success');
+            displayQueue();
+        } else {
+            Swal.fire('Info', result.message, 'info');
         }
-        displayQueue();
+    } catch (error) {
+        Swal.fire('Error', 'Gagal menambahkan ke antrian', 'error');
     }
 }
 
-function addToQueue(patient) {
-    const queue = getQueue();
-    if (queue.some(item => item.patient.patientId === patient.patientId && item.status !== 'Selesai')) {
-        Swal.fire('Info', 'Pasien sudah ada di dalam antrian aktif.', 'info');
-        return null; // Return null to indicate patient was not added
+async function getQueue() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/visits/active`);
+        if (!response.ok) throw new Error('Failed to fetch queue');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching queue:', error);
+        return [];
     }
-    const queueNumber = queue.length > 0 ? Math.max(...queue.map(q => q.queueNumber)) + 1 : 1;
-    const queueItem = {
-        queueNumber,
-        patient,
-        status: 'Menunggu Pemeriksaan',
-        registeredAt: new Date().toISOString()
-    };
-    queue.push(queueItem);
-    saveQueue(queue);
-    return queueItem;
 }
 
 function getStatusInfo(status) {
     const statusMap = {
-        'Menunggu Pemeriksaan': { text: 'Menunggu Pemeriksaan', class: 'status-waiting' },
-        'Menunggu Dokter': { text: 'Menunggu Dokter', class: 'status-examining' },
-        'Menunggu Resep': { text: 'Menunggu Resep', class: 'status-pharmacy' },
-        'Menunggu Pembayaran': { text: 'Menunggu Pembayaran', class: 'status-billing' },
-        'Menunggu Pengambilan Obat': { text: 'Siap Diambil', class: 'status-pickup' },
-        'Selesai': { text: 'Selesai', class: 'status-completed' },
+        'Waiting': { text: 'Menunggu Pemeriksaan', class: 'status-waiting' },
+        'Examining': { text: 'Sedang Diperiksa', class: 'status-examining' },
+        'Pharmacy': { text: 'Menunggu Obat', class: 'status-pharmacy' },
+        'Cashier': { text: 'Menunggu Pembayaran', class: 'status-billing' },
+        'Done': { text: 'Selesai', class: 'status-completed' },
     };
     return statusMap[status] || { text: status, class: 'status-unknown' };
 }
 
-function displayQueue() {
+async function displayQueue() {
     const queueList = document.getElementById('queueList');
-    const queue = getQueue().filter(item => item.status !== 'Selesai');
+    const queue = await getQueue();
     const currentUser = getCurrentUser();
-    
+
     if (queue.length === 0) {
         queueList.innerHTML = `<div class="empty-state"><p>Belum ada pasien dalam antrian aktif.</p></div>`;
         return;
@@ -267,16 +330,20 @@ function displayQueue() {
 
     queueList.innerHTML = queue.map(item => {
         const statusInfo = getStatusInfo(item.status);
-        const adminButton = (currentUser && currentUser.role === 'admin') 
-            ? `<button class="btn-action btn-sm" onclick="showPatientDetails('${item.patient.patientId}')"><i class="fas fa-eye"></i> Detail</button>`
+        // Note: We don't have full patient details in visit object, just patientName. 
+        // If we need more details for admin modal, we might need to fetch patient details separately or include them in visit.
+        // For now, let's use what we have.
+
+        const adminButton = (currentUser && currentUser.role === 'admin')
+            ? `<button class="btn-action btn-sm" onclick="showPatientDetails('${item.patientId}')"><i class="fas fa-eye"></i> Detail</button>`
             : '';
 
         return `
             <div class="queue-item">
                 <div class="queue-number">#${item.queueNumber}</div>
                 <div class="queue-info">
-                    <div class="queue-name">${item.patient.nama}</div>
-                    <div class="queue-details">ID: ${item.patient.patientId}</div>
+                    <div class="queue-name">${item.patientName}</div>
+                    <div class="queue-details">ID: ${item.patientId}</div>
                 </div>
                 <div class="queue-status ${statusInfo.class}">${statusInfo.text}</div>
                 <div class="queue-actions">${adminButton}</div>
@@ -285,35 +352,46 @@ function displayQueue() {
     }).join('');
 }
 
-function showPatientDetails(patientId) {
+async function showPatientDetails(patientId) {
     const modal = document.getElementById('patientDetailModal');
     const body = document.getElementById('patientDetailBody');
     const nameEl = document.getElementById('modalPatientName');
 
-    const patientData = findPatientById(patientId);
-    const queueItem = getQueue().find(item => item.patient.patientId === patientId);
+    // Fetch patient details
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/${patientId}`);
+        const patientData = await response.json();
 
-    if (!patientData || !modal || !body || !nameEl) {
-        console.error('Could not find patient data or modal elements.');
-        return;
+        // Find visit info
+        const queue = await getQueue();
+        const queueItem = queue.find(item => item.patientId === patientId);
+
+        if (!patientData || !modal || !body || !nameEl) {
+            console.error('Could not find patient data or modal elements.');
+            return;
+        }
+
+        nameEl.textContent = `Detail Pasien: ${patientData.name}`;
+        body.innerHTML = `
+            <div class="patient-detail-grid">
+                <div><strong>ID Pasien:</strong></div><div>${patientData.id}</div>
+                <div><strong>Nama:</strong></div><div>${patientData.name}</div>
+                <div><strong>Alamat:</strong></div><div>${patientData.address}</div>
+                <div><strong>No. Telepon:</strong></div><div>${patientData.phone}</div>
+                <div><strong>Status Keanggotaan:</strong></div><div>${patientData.insuranceType}</div>
+                <hr>
+                <div><strong>No. Antrian:</strong></div><div>#${queueItem ? queueItem.queueNumber : 'N/A'}</div>
+                <div><strong>Status Saat Ini:</strong></div><div>${queueItem ? queueItem.status : 'N/A'}</div>
+                <div><strong>Waktu Daftar:</strong></div><div>${queueItem ? new Date(queueItem.date).toLocaleString('id-ID') : 'N/A'}</div>
+            </div>
+        `;
+
+        modal.style.display = 'block';
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', 'Gagal memuat detail pasien', 'error');
     }
-
-    nameEl.textContent = `Detail Pasien: ${patientData.nama}`;
-    body.innerHTML = `
-        <div class="patient-detail-grid">
-            <div><strong>ID Pasien:</strong></div><div>${patientData.patientId}</div>
-            <div><strong>Nama:</strong></div><div>${patientData.nama}</div>
-            <div><strong>Alamat:</strong></div><div>${patientData.alamat}</div>
-            <div><strong>No. Telepon:</strong></div><div>${patientData.no_telp}</div>
-            <div><strong>Status Keanggotaan:</strong></div><div>${patientData.status_pasien}</div>
-            <hr>
-            <div><strong>No. Antrian:</strong></div><div>#${queueItem ? queueItem.queueNumber : 'N/A'}</div>
-            <div><strong>Status Saat Ini:</strong></div><div>${queueItem ? queueItem.status : 'N/A'}</div>
-            <div><strong>Waktu Daftar:</strong></div><div>${queueItem ? new Date(queueItem.registeredAt).toLocaleString('id-ID') : 'N/A'}</div>
-        </div>
-    `;
-
-    modal.style.display = 'block';
 }
 
 function closePatientDetailModal() {
@@ -331,6 +409,3 @@ function resetForm(formId) {
     const form = document.getElementById(formId);
     if (form) form.reset();
 }
-
-
-

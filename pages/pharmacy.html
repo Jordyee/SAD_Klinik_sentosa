@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body>
     <!-- Header Navigation -->
     <header class="header">
@@ -50,6 +52,10 @@
                     <i class="fas fa-prescription"></i>
                     Resep Masuk
                 </button>
+                <button class="tab-btn" data-tab="handover">
+                    <i class="fas fa-hand-holding-medical"></i>
+                    Penyerahan Obat
+                </button>
                 <button class="tab-btn" data-tab="stock">
                     <i class="fas fa-boxes"></i>
                     Manajemen Stok
@@ -60,10 +66,10 @@
                 </button>
             </div>
 
-            <!-- Prescriptions Tab -->
+            <!-- Prescriptions Tab (Incoming) -->
             <div id="prescriptionsTab" class="tab-content active">
                 <div class="section-header">
-                    <h2><i class="fas fa-prescription"></i> Daftar Resep</h2>
+                    <h2><i class="fas fa-prescription"></i> Daftar Resep Masuk</h2>
                     <button class="btn-refresh" onclick="refreshPrescriptions()">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
@@ -71,6 +77,20 @@
 
                 <div id="prescriptionsList" class="prescriptions-list">
                     <!-- Prescriptions will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Handover Tab (Ready for Patient) -->
+            <div id="handoverTab" class="tab-content">
+                <div class="section-header">
+                    <h2><i class="fas fa-hand-holding-medical"></i> Penyerahan Obat (Siap)</h2>
+                    <button class="btn-refresh" onclick="refreshHandover()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <div id="handoverList" class="prescriptions-list">
+                    <!-- Ready prescriptions will be populated by JavaScript -->
                 </div>
             </div>
 
@@ -86,7 +106,8 @@
                 <div class="search-container">
                     <div class="search-box-large">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="stockSearch" placeholder="Cari obat..." onkeyup="searchMedicine(this.value)">
+                        <input type="text" id="stockSearch" placeholder="Cari obat..."
+                            onkeyup="searchMedicine(this.value)">
                     </div>
                 </div>
 
@@ -112,6 +133,9 @@
             <div id="historyTab" class="tab-content">
                 <div class="section-header">
                     <h2><i class="fas fa-history"></i> Riwayat Transaksi Obat</h2>
+                    <button class="btn-refresh" onclick="refreshHistory()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
                 <div id="pharmacyHistoryList" class="history-list">
                     <!-- History will be populated by JavaScript -->
@@ -223,7 +247,10 @@
         </div>
     </div>
 
-    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/config.js"></script>
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/main.js"></script>
-    <script src="../scripts/pharmacy.js"></script>
+    <script src="../scripts/pharmacy.js?v=2"></script>
+</body>
+
+</html>

@@ -1,15 +1,11 @@
-// Examination Module JavaScript
-
-let vitalsRecords = []; // array of vitals entries {id, patientId, date, data}
-let medicalRecords = [];
-let currentPrescriptionItems = []; // Holds items for the current prescription being built
+// Examination Module JavaScript (API Integration)
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (!requireRole(['dokter', 'perawat', 'admin'])) {
         return;
     }
-    
+
     const role = getCurrentRole();
     if (role === 'perawat') {
         document.getElementById('consultationTab').style.display = 'none';
@@ -20,100 +16,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('vitalsTab').style.display = 'none';
         document.querySelector('.tab-btn:first-child').style.display = 'none';
         switchExaminationTab('consultation');
-        displayProblematicPrescriptions();
-        populateMedicineSelect(); // For the prescription form
+        // displayProblematicPrescriptions(); // Not implemented in backend yet
+        populateMedicineSelect();
     }
 
     loadExaminationData();
     setupExaminationListeners();
 });
 
-function displayProblematicPrescriptions() {
-    const container = document.getElementById('problematicPrescriptionsList');
-    const section = document.getElementById('problematicPrescriptionsSection');
-    const prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    const problematic = prescriptions.filter(p => p.status === 'pending_doctor_review');
-
-    if (!container || !section) return;
-
-    if (problematic.length === 0) {
-        section.style.display = 'none';
-        return;
-    }
-
-    section.style.display = 'block';
-    container.innerHTML = problematic.map(p => `
-        <div class="prescription-card status-danger">
-            <h4>Tinjauan Resep untuk ${p.patientName}</h4>
-            <p><strong>Catatan dari Apotek:</strong> ${p.notes}</p>
-            <div class="prescription-actions">
-                <button class="btn-action btn-danger" onclick="cancelPrescription('${p.id}')">Batalkan Resep</button>
-                <button class="btn-action btn-warning" onclick="editPrescription('${p.id}')">Ubah & Kirim Ulang</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-function cancelPrescription(prescriptionId) {
-    Swal.fire({
-        title: 'Anda yakin?',
-        text: "Resep ini akan dibatalkan secara permanen.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Ya, batalkan!',
-        cancelButtonText: 'Tidak'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-            const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-            if (idx > -1) {
-                prescriptions[idx].status = 'cancelled';
-                localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-                Swal.fire('Dibatalkan!', 'Resep telah dibatalkan.', 'success');
-                displayProblematicPrescriptions();
-            }
-        }
-    });
-}
-
-async function editPrescription(prescriptionId) {
-    let prescriptions = JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]');
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx > -1) {
-        const { value: newNotes } = await Swal.fire({
-            title: 'Ubah Resep',
-            input: 'textarea',
-            inputLabel: 'Catatan atau resep baru untuk apotek',
-            inputValue: prescriptions[idx].notes,
-            showCancelButton: true,
-            confirmButtonText: 'Kirim Ulang',
-            cancelButtonText: 'Batal',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Anda harus memasukkan catatan!';
-                }
-            }
-        });
-
-        if (newNotes) {
-            prescriptions[idx].notes = `[DIUBAH DOKTER] ${newNotes}`;
-            prescriptions[idx].status = 'pending'; // Resend to pharmacy
-            localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-            Swal.fire('Terkirim!', 'Resep telah diubah dan dikirim ulang ke apotek.', 'success');
-            displayProblematicPrescriptions();
-        }
-    }
-}
-
 function loadExaminationData() {
-    const savedVitals = localStorage.getItem('vitalsRecords');
-    if (savedVitals) vitalsRecords = JSON.parse(savedVitals);
-
-    const savedRecords = localStorage.getItem('medicalRecords');
-    if (savedRecords) medicalRecords = JSON.parse(savedRecords);
-
     displayExaminationQueue();
     populatePatientSelects();
 }
@@ -121,7 +32,7 @@ function loadExaminationData() {
 function setupExaminationListeners() {
     const vitalsForm = document.getElementById('vitalsForm');
     if (vitalsForm) vitalsForm.addEventListener('submit', handleVitalsSubmit);
-    
+
     const consultationForm = document.getElementById('consultationForm');
     if (consultationForm) consultationForm.addEventListener('submit', handleConsultationSubmit);
 }
@@ -129,7 +40,7 @@ function setupExaminationListeners() {
 function switchExaminationTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
+
     let tabIndex = 0;
     if (tab === 'consultation') tabIndex = 1;
     if (tab === 'history') tabIndex = 2;
@@ -138,25 +49,41 @@ function switchExaminationTab(tab) {
     document.getElementById(`${tab}Tab`).classList.add('active');
 }
 
-function displayExaminationQueue() {
+// --- Queue Management ---
+
+async function getQueue() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/visits/active`);
+        if (!response.ok) throw new Error('Failed to fetch queue');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching queue:', error);
+        return [];
+    }
+}
+
+async function displayExaminationQueue() {
     const queueContainer = document.getElementById('examinationQueue');
-    const examinationQueue = getQueue().filter(p => 
-        ['Menunggu Pemeriksaan', 'Menunggu Dokter'].includes(p.status)
+    const queue = await getQueue();
+
+    // Filter for patients waiting for examination or doctor
+    const examinationQueue = queue.filter(p =>
+        ['Waiting', 'Examining'].includes(p.status)
     );
-    
+
     if (examinationQueue.length === 0) {
         queueContainer.innerHTML = `<div class="empty-state"><p>Belum ada pasien dalam antrian pemeriksaan.</p></div>`;
         return;
     }
-    
+
     queueContainer.innerHTML = examinationQueue.map(item => {
         const statusInfo = getStatusInfo(item.status);
         return `
             <div class="queue-item">
                 <div class="queue-number">#${item.queueNumber}</div>
                 <div class="queue-info">
-                    <div class="queue-name">${item.patient.nama}</div>
-                    <div class="queue-details">ID: ${item.patient.patientId}</div>
+                    <div class="queue-name">${item.patientName}</div>
+                    <div class="queue-details">ID: ${item.patientId}</div>
                 </div>
                 <div class="queue-status ${statusInfo.class}">${statusInfo.text}</div>
             </div>
@@ -164,10 +91,21 @@ function displayExaminationQueue() {
     }).join('');
 }
 
-function populatePatientSelects() {
-    const queue = getQueue();
+function getStatusInfo(status) {
+    const statusMap = {
+        'Waiting': { text: 'Menunggu Pemeriksaan', class: 'status-waiting' },
+        'Examining': { text: 'Menunggu Dokter', class: 'status-examining' },
+        'Pharmacy': { text: 'Menunggu Resep', class: 'status-pharmacy' },
+        'Cashier': { text: 'Menunggu Pembayaran', class: 'status-billing' },
+        'Done': { text: 'Selesai', class: 'status-completed' },
+    };
+    return statusMap[status] || { text: status, class: 'status-unknown' };
+}
+
+async function populatePatientSelects() {
+    const queue = await getQueue();
     const selects = ['patientSelect', 'consultationPatientSelect', 'historyPatientSelect'];
-    
+
     selects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (!select) return;
@@ -188,7 +126,7 @@ function populatePatientSelects() {
 
             // Debounced filter handler
             let timeout;
-            searchInput.addEventListener('input', function(e) {
+            searchInput.addEventListener('input', function (e) {
                 clearTimeout(timeout);
                 const q = e.target.value.trim().toLowerCase();
                 timeout = setTimeout(() => {
@@ -201,11 +139,18 @@ function populatePatientSelects() {
             });
         }
 
-        // Populate options (keep lightweight creation)
+        // Populate options
+        // Filter based on role?
+        // Nurse sees 'Waiting'
+        // Doctor sees 'Examining' (which is 'Menunggu Dokter')
+        // But for history, maybe all?
+        // For now, show all active queue items to be safe, or filter.
+
         queue.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.patient.patientId;
-            option.textContent = `${item.patient.nama} (#${item.queueNumber})`;
+            option.value = item.patientId;
+            option.textContent = `${item.patientName} (#${item.queueNumber})`;
+            option.dataset.visitId = item.id; // Store visitId
             select.appendChild(option);
         });
 
@@ -218,87 +163,106 @@ function populatePatientSelects() {
     });
 }
 
-function handleVitalsSubmit(e) {
+// --- Vitals Submission (Nurse) ---
+
+async function handleVitalsSubmit(e) {
     e.preventDefault();
-    const patientId = document.getElementById('patientSelect').value;
-    if (!patientId) {
+    const patientSelect = document.getElementById('patientSelect');
+    const patientId = patientSelect.value;
+    const visitId = patientSelect.options[patientSelect.selectedIndex].dataset.visitId;
+
+    if (!patientId || !visitId) {
         Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
-    
+
     const vitalsData = {
-        tinggi_badan: document.getElementById('tinggi_badan').value,
-        berat_badan: document.getElementById('berat_badan').value,
-        tensi_darah: document.getElementById('tensi_darah').value,
-        suhu_badan: document.getElementById('suhu_badan').value || null,
-        keluhan_perawat: document.getElementById('keluhan_perawat').value
-    };
-    // Create a new vitals record instead of overwriting historical vitals
-    const record = {
-        id: 'V' + Date.now(),
-        patientId: patientId,
-        date: new Date().toISOString(),
-        data: vitalsData
+        height: document.getElementById('tinggi_badan').value,
+        weight: document.getElementById('berat_badan').value,
+        bloodPressure: document.getElementById('tensi_darah').value,
+        temperature: document.getElementById('suhu_badan').value || null,
+        nurseNotes: document.getElementById('keluhan_perawat').value // Add this to vitals object
     };
 
-    vitalsRecords.push(record);
-    localStorage.setItem('vitalsRecords', JSON.stringify(vitalsRecords));
+    try {
+        const response = await fetch(`${API_BASE_URL}/medical-records`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                visitId,
+                patientId,
+                vitals: vitalsData
+                // No diagnosis, so backend will set status to 'Examining'
+            })
+        });
+        const result = await response.json();
 
-    // Move patient forward in queue
-    updateQueueStatus(patientId, 'Menunggu Dokter');
-    
-    Swal.fire('Berhasil', 'Data vital berhasil disimpan.', 'success');
-    resetVitalsForm();
-    refreshExaminationQueue();
+        if (result.success) {
+            Swal.fire('Berhasil', 'Data vital berhasil disimpan.', 'success');
+            document.getElementById('vitalsForm').reset();
+            loadExaminationData();
+        } else {
+            Swal.fire('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Terjadi kesalahan koneksi.', 'error');
+    }
 }
 
-function handleConsultationSubmit(e) {
+// --- Consultation Submission (Doctor) ---
+
+let currentPrescriptionItems = [];
+
+async function handleConsultationSubmit(e) {
     e.preventDefault();
-    const patientId = document.getElementById('consultationPatientSelect').value;
-    if (!patientId) {
+    const patientSelect = document.getElementById('consultationPatientSelect');
+    const patientId = patientSelect.value;
+    const visitId = patientSelect.options[patientSelect.selectedIndex].dataset.visitId;
+
+    if (!patientId || !visitId) {
         Swal.fire('Peringatan', 'Pilih pasien terlebih dahulu.', 'warning');
         return;
     }
-    
+
     const needsPrescription = document.getElementById('needsPrescription').checked;
-    
+
     if (needsPrescription && currentPrescriptionItems.length === 0) {
         Swal.fire('Peringatan', 'Anda mencentang "memerlukan resep", tetapi belum ada obat yang ditambahkan ke resep.', 'warning');
         return;
     }
 
     const consultationData = {
-        patientId: patientId,
-        date: new Date().toISOString(),
-        keluhan: document.getElementById('keluhan_pasien').value,
-        hasil_pemeriksaan: document.getElementById('hasil_pemeriksaan').value,
-        catatan_dokter: document.getElementById('catatan_dokter').value,
-        needsPrescription: needsPrescription,
-        prescriptionNotes: document.getElementById('prescription_notes').value || null,
-        prescriptionItems: needsPrescription ? currentPrescriptionItems : []
+        visitId,
+        patientId,
+        doctorId: getCurrentUser().id, // Assuming user has ID
+        diagnosis: document.getElementById('hasil_pemeriksaan').value,
+        notes: document.getElementById('catatan_dokter').value,
+        prescription: needsPrescription ? currentPrescriptionItems : []
     };
-    
-    // Append consultation as a new medical record entry (do not overwrite existing history)
-    medicalRecords.push(consultationData);
-    localStorage.setItem('medicalRecords', JSON.stringify(medicalRecords));
-    
-    if (needsPrescription) {
-        syncPrescriptionToPharmacy(patientId, {
-            notes: consultationData.prescriptionNotes,
-            items: consultationData.prescriptionItems
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/medical-records`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(consultationData)
         });
-    } else {
-        updateQueueStatus(patientId, 'Menunggu Pembayaran');
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire('Berhasil', 'Hasil pemeriksaan berhasil disimpan!', 'success');
+            resetConsultationForm();
+            loadExaminationData();
+        } else {
+            Swal.fire('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Terjadi kesalahan koneksi.', 'error');
     }
-    
-    Swal.fire('Berhasil', 'Hasil pemeriksaan berhasil disimpan!', 'success');
-    resetConsultationForm();
-    refreshExaminationQueue();
 }
 
-function loadPatientForConsultation(patientId) {
+async function loadPatientForConsultation(patientId) {
     const display = document.getElementById('patientHistoryDisplay');
-    const keluhanTextarea = document.getElementById('keluhan_pasien');
+    const keluhanTextarea = document.getElementById('keluhan_pasien'); // Note: This field might not exist in backend vitals yet
 
     display.innerHTML = '';
     keluhanTextarea.value = '';
@@ -308,95 +272,105 @@ function loadPatientForConsultation(patientId) {
         return;
     }
 
-    // Find the most recent vitals record for this patient
-    const patientVitalsList = vitalsRecords.filter(v => v.patientId === patientId);
-    if (patientVitalsList.length > 0) {
-        const latest = patientVitalsList.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
-        const v = latest.data;
-        display.innerHTML = `
-            <h4><i class="fas fa-notes-medical"></i> Catatan dari Perawat</h4>
-            <div class="vitals-display">
-                <span><strong>Tinggi:</strong> ${v.tinggi_badan || '-'} cm</span>
-                <span><strong>Berat:</strong> ${v.berat_badan || '-'} kg</span>
-                <span><strong>Tensi:</strong> ${v.tensi_darah || '-'}</span>
-                <span><strong>Suhu:</strong> ${v.suhu_badan || '-'} °C</span>
-            </div>
-            <p><strong>Keluhan Awal:</strong> ${v.keluhan_perawat || 'Tidak ada.'}</p>
-            <p class="vitals-timestamp"><em>Catatan perawat terakhir: ${new Date(latest.date).toLocaleString('id-ID')}</em></p>
-        `;
-        keluhanTextarea.value = v.keluhan_perawat || '';
-    } else {
-        display.innerHTML = `<div class="empty-state"><p>Data vital dari perawat belum diinput untuk pasien ini.</p></div>`;
+    try {
+        const response = await fetch(`${API_BASE_URL}/medical-records/patient/${patientId}`);
+        const records = await response.json();
+
+        // Find the latest record with vitals (likely the one just created by Nurse)
+        // We can filter by date or just take the last one that has vitals.
+        const latestVitalsRecord = records.filter(r => r.vitals).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        if (latestVitalsRecord && latestVitalsRecord.vitals) {
+            const v = latestVitalsRecord.vitals;
+            display.innerHTML = `
+                <h4><i class="fas fa-notes-medical"></i> Catatan dari Perawat</h4>
+                <div class="vitals-display">
+                    <span><strong>Tinggi:</strong> ${v.height || '-'} cm</span>
+                    <span><strong>Berat:</strong> ${v.weight || '-'} kg</span>
+                    <span><strong>Tensi:</strong> ${v.bloodPressure || '-'}</span>
+                    <span><strong>Suhu:</strong> ${v.temperature || '-'} °C</span>
+                </div>
+                <p><strong>Keluhan Awal:</strong> ${v.nurseNotes || 'Tidak ada.'}</p>
+                <p class="vitals-timestamp"><em>Catatan perawat terakhir: ${new Date(latestVitalsRecord.date).toLocaleString('id-ID')}</em></p>
+            `;
+            keluhanTextarea.value = v.nurseNotes || ''; // Pre-fill complaint if available
+        } else {
+            display.innerHTML = `<div class="empty-state"><p>Data vital dari perawat belum diinput untuk pasien ini.</p></div>`;
+        }
+    } catch (error) {
+        console.error('Error fetching patient history:', error);
     }
 }
 
-// Load patient history (medical records + vitals list)
-function loadPatientHistory(patientId) {
+// --- History ---
+
+async function loadPatientHistory(patientId) {
     const container = document.getElementById('patientHistoryList');
     if (!patientId) {
         container.innerHTML = `<div class="empty-state"><p>Pilih pasien untuk melihat riwayat medis.</p></div>`;
         return;
     }
 
-    const records = medicalRecords.filter(r => r.patientId === patientId).slice().reverse();
-    const vitals = vitalsRecords.filter(v => v.patientId === patientId).slice().reverse();
+    try {
+        const response = await fetch(`${API_BASE_URL}/medical-records/patient/${patientId}`);
+        const records = await response.json();
 
-    if (records.length === 0 && vitals.length === 0) {
-        container.innerHTML = `<div class="empty-state"><p>Tidak ada riwayat untuk pasien ini.</p></div>`;
-        return;
-    }
+        if (records.length === 0) {
+            container.innerHTML = `<div class="empty-state"><p>Tidak ada riwayat untuk pasien ini.</p></div>`;
+            return;
+        }
 
-    let html = '';
-    if (vitals.length > 0) {
-        html += `<h4>Catatan Vital (Perawat)</h4>`;
-        html += vitals.map(v => `
-            <div class="history-card">
-                <p><strong>Waktu:</strong> ${new Date(v.date).toLocaleString('id-ID')}</p>
-                <p><strong>Tinggi / Berat:</strong> ${v.data.tinggi_badan || '-'} cm / ${v.data.berat_badan || '-'} kg</p>
-                <p><strong>Tensi:</strong> ${v.data.tensi_darah || '-'}</p>
-                <p><strong>Suhu:</strong> ${v.data.suhu_badan || '-'}</p>
-                <p><strong>Keluhan Perawat:</strong> ${v.data.keluhan_perawat || '-'}</p>
-            </div>
-        `).join('');
-    }
+        // Sort by date desc
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    if (records.length > 0) {
-        html += `<h4>Riwayat Pemeriksaan (Dokter)</h4>`;
+        let html = `<h4>Riwayat Medis</h4>`;
         html += records.map(r => `
             <div class="history-card">
                 <p><strong>Tanggal:</strong> ${new Date(r.date).toLocaleString('id-ID')}</p>
-                <p><strong>Keluhan:</strong> ${r.keluhan}</p>
-                <p><strong>Hasil Pemeriksaan:</strong> ${r.hasil_pemeriksaan}</p>
-                <p><strong>Catatan Dokter:</strong> ${r.catatan_dokter || '-'}</p>
-                ${r.prescriptionItems && r.prescriptionItems.length ? `<p><strong>Resep:</strong> ${r.prescriptionItems.map(i=>i.medicineName+' x'+i.quantity).join(', ')}</p>` : ''}
+                ${r.vitals ? `
+                <div class="vitals-mini">
+                    <small>Vital: ${r.vitals.bloodPressure || '-'} mmHg, ${r.vitals.temperature || '-'}°C</small>
+                </div>` : ''}
+                <p><strong>Diagnosis:</strong> ${r.diagnosis || '-'}</p>
+                <p><strong>Catatan:</strong> ${r.notes || '-'}</p>
+                ${r.prescription && r.prescription.length ? `<p><strong>Resep:</strong> ${r.prescription.map(i => i.medicineName + ' x' + i.quantity).join(', ')}</p>` : ''}
             </div>
         `).join('');
-    }
 
-    container.innerHTML = html;
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error fetching history:', error);
+    }
 }
 
 // --- Prescription Item Management ---
 
-function populateMedicineSelect() {
+async function populateMedicineSelect() {
     const select = document.getElementById('prescriptionMedicineSelect');
     if (!select) return;
-    const medicines = JSON.parse(localStorage.getItem('medicines') || '[]');
-    medicines.forEach(med => {
-        if (med.stok > 0) {
-            const option = document.createElement('option');
-            option.value = med.id;
-            option.textContent = `${med.nama} (Stok: ${med.stok})`;
-            option.dataset.name = med.nama;
-            select.appendChild(option);
-        }
-    });
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines`);
+        const medicines = await response.json();
+
+        medicines.forEach(med => {
+            if (med.stock > 0) {
+                const option = document.createElement('option');
+                option.value = med.id;
+                option.textContent = `${med.name} (Stok: ${med.stock})`;
+                option.dataset.name = med.name;
+                select.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching medicines:', error);
+    }
 }
 
 function addMedicineToPrescription() {
     const medicineSelect = document.getElementById('prescriptionMedicineSelect');
     const quantityInput = document.getElementById('prescriptionQuantity');
-    
+
     const medicineId = medicineSelect.value;
     const quantity = parseInt(quantityInput.value);
 
@@ -414,18 +388,18 @@ function addMedicineToPrescription() {
         existingItem.quantity += quantity;
     } else {
         currentPrescriptionItems.push({
-            id: 'item_' + Date.now(),
             medicineId: medicineId,
             medicineName: medicineName,
-            quantity: quantity
+            quantity: quantity,
+            instructions: '' // Add instructions if needed
         });
     }
-    
+
     renderCurrentPrescription();
 }
 
-function removeMedicineFromPrescription(itemId) {
-    currentPrescriptionItems = currentPrescriptionItems.filter(item => item.id !== itemId);
+function removeMedicineFromPrescription(medicineId) {
+    currentPrescriptionItems = currentPrescriptionItems.filter(item => item.medicineId !== medicineId);
     renderCurrentPrescription();
 }
 
@@ -446,7 +420,7 @@ function renderCurrentPrescription() {
                     <tr>
                         <td>${item.medicineName}</td>
                         <td>${item.quantity}</td>
-                        <td><button type="button" class="btn-action-danger btn-sm" onclick="removeMedicineFromPrescription('${item.id}')"><i class="fas fa-times"></i></button></td>
+                        <td><button type="button" class="btn-action-danger btn-sm" onclick="removeMedicineFromPrescription('${item.medicineId}')"><i class="fas fa-times"></i></button></td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -454,12 +428,7 @@ function renderCurrentPrescription() {
     `;
 }
 
-
 // --- Helper Functions ---
-
-function resetVitalsForm() {
-    document.getElementById('vitalsForm').reset();
-}
 
 function resetConsultationForm() {
     document.getElementById('consultationForm').reset();
@@ -472,27 +441,8 @@ function resetConsultationForm() {
 function togglePrescriptionForm() {
     const checkbox = document.getElementById('needsPrescription');
     const form = document.getElementById('prescriptionForm');
-    if(form) form.style.display = checkbox.checked ? 'block' : 'none';
+    if (form) form.style.display = checkbox.checked ? 'block' : 'none';
     if (checkbox.checked) {
-        renderCurrentPrescription(); // Initial render when shown
+        renderCurrentPrescription();
     }
 }
-
-function refreshExaminationQueue() {
-    displayExaminationQueue();
-    populatePatientSelects();
-}
-
-function getStatusInfo(status) {
-    const statusMap = {
-        'Menunggu Pemeriksaan': { text: 'Menunggu Pemeriksaan', class: 'status-waiting' },
-        'Menunggu Dokter': { text: 'Menunggu Dokter', class: 'status-examining' },
-        'Menunggu Resep': { text: 'Menunggu Resep', class: 'status-pharmacy' },
-        'Menunggu Pembayaran': { text: 'Menunggu Pembayaran', class: 'status-billing' },
-        'Menunggu Pengambilan Obat': { text: 'Siap Diambil', class: 'status-pickup' },
-        'Selesai': { text: 'Selesai', class: 'status-completed' },
-    };
-    return statusMap[status] || { text: status, class: 'status-unknown' };
-}
-
-

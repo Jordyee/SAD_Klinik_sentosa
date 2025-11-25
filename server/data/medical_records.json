@@ -1,0 +1,120 @@
+[
+  {
+    "id": "midzzdvs29q7wa3iyl7",
+    "visitId": "midzzdvl7almlejtpkv",
+    "patientId": "midzzdvh7cz55xmbpx6",
+    "doctorId": "doc1",
+    "date": "2025-11-25T03:09:49.960Z",
+    "vitals": {
+      "height": 170,
+      "weight": 70,
+      "bloodPressure": "120/80",
+      "temperature": 36.5
+    },
+    "diagnosis": "Flu",
+    "notes": "Rest and drink water",
+    "prescription": [
+      {
+        "medicineId": "midzzdvo1ja60nrz122",
+        "quantity": 2,
+        "instructions": "3x1"
+      }
+    ]
+  },
+  {
+    "id": "mie2xvblfpi6l5g58su",
+    "visitId": "mie2na2z8zrwjgc6y8a",
+    "patientId": "mie2na2ntyg4k0991c",
+    "date": "2025-11-25T04:32:38.097Z",
+    "vitals": {
+      "height": "170",
+      "weight": "70",
+      "bloodPressure": "120/80",
+      "temperature": "36.6",
+      "nurseNotes": "Sakit kaki"
+    }
+  },
+  {
+    "id": "mie30s94tddueq1wlc",
+    "visitId": "mie2na2z8zrwjgc6y8a",
+    "patientId": "mie2na2ntyg4k0991c",
+    "doctorId": "mie2yxa3lkygfm8639i",
+    "date": "2025-11-25T04:34:54.088Z",
+    "diagnosis": "patah kaki",
+    "notes": "butuh istirahat",
+    "prescription": [
+      {
+        "medicineId": "midzzdvo1ja60nrz122",
+        "medicineName": "Paracetamol",
+        "quantity": 1,
+        "instructions": ""
+      }
+    ]
+  },
+  {
+    "id": "mie5sb9bkpm84rbdplo",
+    "visitId": "mie5rg63fljdlyf2t7f",
+    "patientId": "mie5rg5xf6s3jgex23o",
+    "date": "2025-11-25T05:52:17.663Z",
+    "vitals": {
+      "height": "170",
+      "weight": "68",
+      "bloodPressure": "120/80",
+      "temperature": "38.7",
+      "nurseNotes": "Demam"
+    }
+  },
+  {
+    "id": "mie5tfubl4gp0jam3zo",
+    "visitId": "mie5rg63fljdlyf2t7f",
+    "patientId": "mie5rg5xf6s3jgex23o",
+    "doctorId": "mie2yxa3lkygfm8639i",
+    "date": "2025-11-25T05:53:10.259Z",
+    "diagnosis": "jatuh",
+    "notes": "istirahat banyak",
+    "prescription": [
+      {
+        "medicineId": "med017",
+        "medicineName": "Obat Batuk Hitam",
+        "quantity": 4,
+        "instructions": ""
+      },
+      {
+        "medicineId": "med004",
+        "medicineName": "Vitamin C 1000mg",
+        "quantity": 5,
+        "instructions": ""
+      }
+    ]
+  },
+  {
+    "id": "mie66o500ij17iwzudsh",
+    "visitId": "mie65svgiuzh7t34o3",
+    "patientId": "mie65sv996715czbvi",
+    "date": "2025-11-25T06:03:27.540Z",
+    "vitals": {
+      "height": "164",
+      "weight": "60",
+      "bloodPressure": "120/80",
+      "temperature": "34",
+      "nurseNotes": "menggigil"
+    }
+  },
+  {
+    "id": "mie67j8rwokn7pvecfl",
+    "visitId": "mie65svgiuzh7t34o3",
+    "patientId": "mie65sv996715czbvi",
+    "doctorId": "mie2yxa3lkygfm8639i",
+    "date": "2025-11-25T06:04:07.851Z",
+    "diagnosis": "Hipotermia",
+    "notes": "",
+    "prescription": [
+      {
+        "medicineId": "med010",
+        "medicineName": "Dexamethasone 0.5mg",
+        "quantity": 3,
+        "instructions": ""
+      }
+    ]
+  }
+]

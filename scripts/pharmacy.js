@@ -1,338 +1,442 @@
-// --- Initialization ---
-document.addEventListener('DOMContentLoaded', function() {
-    requireRole(['apotek', 'admin']);
+// Pharmacy Module JavaScript (API Integration)
+
+// Expose functions globally
+window.refreshPrescriptions = refreshPrescriptions;
+window.refreshHandover = refreshHandover;
+window.refreshHistory = refreshHistory;
+window.processPrescription = processPrescription;
+window.handoverMedicine = handoverMedicine;
+window.showAddMedicineModal = showAddMedicineModal;
+window.closeMedicineModal = closeMedicineModal;
+window.addMedicine = addMedicine;
+window.updateMedicine = updateMedicine;
+window.editMedicine = editMedicine;
+window.restockMedicine = restockMedicine;
+window.searchMedicine = searchMedicine;
+window.closePrescriptionModal = closePrescriptionModal;
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof requireRole === 'function') {
+        if (!requireRole(['apotek', 'admin'])) {
+            return;
+        }
+    }
+
+    // Initial Load
     loadPharmacyData();
     setupPharmacyListeners();
 });
 
 function loadPharmacyData() {
-    displayPrescriptions();
-    displayStockTable();
+    displayPrescriptionQueue(); // Default tab
 }
 
 function setupPharmacyListeners() {
-    // Modal closing logic
-    window.onclick = function(event) {
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            if (event.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    };
-
-    // New, robust tab switching logic
-    const tabs = document.querySelectorAll('.tabs .tab-btn');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabName = tab.dataset.tab;
-            
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-            tab.classList.add('active');
-            document.getElementById(`${tabName}Tab`).classList.add('active');
-
-            // Refresh content on tab switch
-            if (tabName === 'stock') displayStockTable();
-            else if (tabName === 'history') displayPharmacyHistory();
-            else displayPrescriptions();
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            switchPharmacyTab(tab);
         });
     });
 }
 
-// --- Prescription Handling ---
-function getPrescriptions() { return JSON.parse(localStorage.getItem('pendingPrescriptions') || '[]'); }
-function savePrescriptions(prescriptions) { localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions)); }
+function switchPharmacyTab(tab) {
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-function displayPrescriptions() {
+    // Add active class to selected tab and content
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`${tab}Tab`).classList.add('active');
+
+    // Load data for the selected tab
+    if (tab === 'stock') {
+        displayMedicineStock();
+    } else if (tab === 'prescriptions') {
+        displayPrescriptionQueue();
+    } else if (tab === 'handover') {
+        displayHandoverQueue();
+    } else if (tab === 'history') {
+        displayPharmacyHistory();
+    }
+}
+
+// --- 1. Incoming Prescriptions (Resep Masuk) ---
+
+async function getPendingPrescriptions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/pending`);
+        if (!response.ok) throw new Error('Failed to fetch prescriptions');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching prescriptions:', error);
+        return [];
+    }
+}
+
+async function displayPrescriptionQueue() {
     const container = document.getElementById('prescriptionsList');
-    const prescriptions = getPrescriptions().filter(p => 
-        (p.status === 'pending' || p.status === 'pending_doctor_review') || 
-        (p.status === 'processed' && p.paymentStatus === 'paid')
-    );
-    const medicines = getMedicines();
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-spinner">Memuat...</div>';
+
+    const prescriptions = await getPendingPrescriptions();
 
     if (prescriptions.length === 0) {
-        container.innerHTML = `<div class="empty-state"><p>Belum ada resep aktif yang masuk.</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>Tidak ada resep baru yang perlu diproses.</p></div>`;
         return;
     }
-    
+
     container.innerHTML = prescriptions.map(p => {
-        let actionButton = '';
-        let statusText = getPrescriptionStatusText(p.status);
-
-        if (p.status === 'pending') {
-            const items = Array.isArray(p.items) ? p.items : [];
-            const allItemsAvailable = items.every(item => {
-                const med = medicines.find(m => m.id === item.medicineId);
-                return med && med.stok >= item.quantity;
-            });
-
-            if (allItemsAvailable) {
-                actionButton = `<button class="btn-action btn-submit" onclick="processPrescription('${p.id}')"><i class="fas fa-cogs"></i> Proses & Kirim ke Kasir</button>`;
-            } else {
-                actionButton = `<button class="btn-action btn-danger" onclick="reportOutOfStock('${p.id}')"><i class="fas fa-exclamation-triangle"></i> Laporkan Stok Kurang</button>`;
-            }
-            // Add a view details button for consistency
-            actionButton += `<button class="btn-action btn-secondary" onclick="viewPrescriptionDetails('${p.id}')"><i class="fas fa-eye"></i> Lihat Detail</button>`;
-
-        } else if (p.status === 'processed' && p.paymentStatus === 'paid') {
-            actionButton = `<button class="btn-action btn-complete" onclick="handOverMedicine('${p.id}')"><i class="fas fa-check-double"></i> Serahkan Obat</button>`;
-            statusText = 'Siap Diambil';
-        } else if (p.status === 'pending_doctor_review') {
-            actionButton = `<p class="info-text text-danger">Menunggu tinjauan dokter...</p>`;
-        }
+        const itemsHTML = (p.items && p.items.length > 0)
+            ? p.items.map(item => `<li>${item.medicineName} - ${item.quantity} ${item.instructions ? `(${item.instructions})` : ''}</li>`).join('')
+            : '<li>Tidak ada obat</li>';
 
         return `
-            <div class="prescription-card status-${p.status}">
-                <div class="card-header">
-                    <h4>Resep untuk: ${p.patientName}</h4>
-                    <span class="status-badge status-${p.status}">${statusText}</span>
-                </div>
-                <div class="card-body">
-                    <p><strong>Tanggal:</strong> ${new Date(p.date).toLocaleDateString('id-ID')}</p>
-                    <p><strong>Catatan Dokter:</strong> ${p.notes || '-'}</p>
-                </div>
-                <div class="card-footer">
-                    ${actionButton}
+        <div class="prescription-card">
+            <div class="prescription-header">
+                <h4>${p.patientName}</h4>
+                <span class="badge badge-warning">Menunggu Konfirmasi</span>
+            </div>
+            <div class="prescription-details">
+                <p><strong>Tanggal:</strong> ${new Date(p.date).toLocaleString('id-ID')}</p>
+                <div class="medicine-list">
+                    <strong>Resep:</strong>
+                    <ul>${itemsHTML}</ul>
                 </div>
             </div>
+            <div class="prescription-actions">
+                <button class="btn-action btn-primary" onclick="processPrescription('${p.visitId}')">
+                    <i class="fas fa-check-circle"></i> Konfirmasi & Teruskan ke Kasir
+                </button>
+            </div>
+        </div>
         `;
     }).join('');
 }
 
-function viewPrescriptionDetails(prescriptionId) {
-    const prescription = getPrescriptions().find(p => p.id === prescriptionId);
-    if (!prescription) return;
-    
-    const modal = document.getElementById('prescriptionModal');
-    const modalBody = document.getElementById('prescriptionModalBody');
-    const footer = modal.querySelector('.modal-footer');
+async function processPrescription(visitId) {
+    Swal.fire({
+        title: 'Konfirmasi Resep?',
+        text: "Stok obat akan dikurangi/disiapkan dan data diteruskan ke Kasir untuk pembayaran.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Proses',
+        cancelButtonText: 'Batal'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visitId })
+                });
+                const data = await response.json();
 
-    const medicines = getMedicines();
-    const items = Array.isArray(prescription.items) ? prescription.items : [];
-
-    const itemsHtml = items.map(item => {
-        const med = medicines.find(m => m.id === item.medicineId);
-        const isAvailable = med && med.stok >= item.quantity;
-        return `<tr><td>${item.medicineName}</td><td>${item.quantity}</td><td class="${isAvailable ? 'text-success' : 'text-error'}">${isAvailable ? 'Tersedia' : 'Stok Kurang'}</td></tr>`;
-    }).join('');
-
-    modalBody.innerHTML = `
-        <p><strong>Pasien:</strong> ${prescription.patientName}</p>
-        <p><strong>Catatan Dokter:</strong> ${prescription.notes || '-'}</p>
-        <table class="detail-table">
-            <thead><tr><th>Obat</th><th>Jumlah</th><th>Ketersediaan</th></tr></thead>
-            <tbody>${items.length > 0 ? itemsHtml : '<tr><td colspan="3">Tidak ada item obat.</td></tr>'}</tbody>
-        </table>
-    `;
-    
-    footer.innerHTML = `<button class="btn-cancel" onclick="closePrescriptionModal()">Tutup</button>`;
-    modal.style.display = 'block';
-}
-
-function reportOutOfStock(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) return;
-
-    prescriptions[idx].status = 'pending_doctor_review';
-    prescriptions[idx].notes = `[Stok Kurang] ${prescriptions[idx].notes}`;
-    savePrescriptions(prescriptions);
-
-    Swal.fire('Terkirim', 'Laporan stok kurang telah dikirim ke dokter untuk ditinjau.', 'success');
-    displayPrescriptions();
-}
-
-function processPrescription(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) {
-        Swal.fire('Error', 'Resep tidak ditemukan.', 'error');
-        return;
-    }
-    
-    const medicines = getMedicines();
-    let stockSufficient = true;
-    // Double-check stock before processing
-    prescriptions[idx].items.forEach(item => {
-        const med = medicines.find(m => m.id === item.medicineId);
-        if (!med || med.stok < item.quantity) {
-            stockSufficient = false;
+                if (data.success) {
+                    Swal.fire('Berhasil', 'Resep diteruskan ke bagian pembayaran.', 'success');
+                    displayPrescriptionQueue();
+                } else {
+                    Swal.fire('Gagal', data.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Gagal memproses resep.', 'error');
+            }
         }
     });
+}
 
-    if (!stockSufficient) {
-        Swal.fire('Gagal', 'Stok berubah dan tidak lagi mencukupi. Harap muat ulang dan laporkan ke dokter.', 'error');
-        displayPrescriptions(); // Refresh the view to show the 'report' button
+// --- 2. Handover (Penyerahan Obat) ---
+
+async function getReadyPrescriptions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/ready`);
+        if (!response.ok) throw new Error('Failed to fetch ready prescriptions');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching ready prescriptions:', error);
+        return [];
+    }
+}
+
+async function displayHandoverQueue() {
+    const container = document.getElementById('handoverList');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-spinner">Memuat...</div>';
+
+    const prescriptions = await getReadyPrescriptions();
+
+    if (prescriptions.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>Tidak ada obat yang siap diserahkan (Menunggu pembayaran).</p></div>`;
         return;
     }
 
-    // Deduct stock
-    prescriptions[idx].items.forEach(item => {
-        const medIdx = medicines.findIndex(m => m.id === item.medicineId);
-        if (medIdx > -1) {
-            medicines[medIdx].stok -= item.quantity;
-        }
-    });
-    saveMedicines(medicines);
+    container.innerHTML = prescriptions.map(p => {
+        const itemsHTML = (p.items && p.items.length > 0)
+            ? p.items.map(item => `<li>${item.medicineName} - ${item.quantity}</li>`).join('')
+            : '<li>Tidak ada obat</li>';
 
-    // Update status
-    prescriptions[idx].status = 'processed';
-    savePrescriptions(prescriptions);
-    updateQueueStatus(prescriptions[idx].patientId, 'Menunggu Pembayaran');
-    
-    Swal.fire('Berhasil', 'Resep telah diproses dan dikirim ke kasir untuk pembayaran.', 'success');
-    displayPrescriptions();
-}
-
-function handOverMedicine(prescriptionId) {
-    let prescriptions = getPrescriptions();
-    const idx = prescriptions.findIndex(p => p.id === prescriptionId);
-    if (idx === -1) return;
-
-    const completedPrescription = { ...prescriptions[idx] };
-
-    // Update patient's main queue status to Selesai ONLY if they have no other active prescriptions
-    const otherActivePrescriptions = prescriptions.filter(p => p.patientId === completedPrescription.patientId && p.id !== prescriptionId && p.status !== 'completed');
-    if (otherActivePrescriptions.length === 0) {
-        updateQueueStatus(completedPrescription.patientId, 'Selesai');
-    }
-    
-    // Move the completed prescription to history
-    const history = JSON.parse(localStorage.getItem('pharmacyHistory') || '[]');
-    history.push({
-        ...completedPrescription,
-        status: 'completed',
-        completedAt: new Date().toISOString()
-    });
-    localStorage.setItem('pharmacyHistory', JSON.stringify(history));
-
-    // Remove from active prescriptions
-    prescriptions.splice(idx, 1);
-    savePrescriptions(prescriptions);
-
-    Swal.fire('Selesai', 'Obat telah diserahkan kepada pasien.', 'success');
-    displayPrescriptions();
-}
-
-function closePrescriptionModal() {
-    const modal = document.getElementById('prescriptionModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-function refreshPrescriptions() { 
-    displayPrescriptions(); 
-}
-
-function getPrescriptionStatusText(status) {
-    const statusMap = {
-        'pending': 'Menunggu Diproses',
-        'processed': 'Diproses',
-        'pending_doctor_review': 'Menunggu Tinjauan Dokter',
-        'completed': 'Selesai',
-        'cancelled': 'Dibatalkan'
-    };
-    return statusMap[status] || status;
-}
-
-// --- History ---
-function displayPharmacyHistory() {
-    const container = document.getElementById('pharmacyHistoryList');
-    const history = JSON.parse(localStorage.getItem('pharmacyHistory') || '[]');
-
-    if (history.length === 0) {
-        container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat transaksi.</p></div>`;
-        return;
-    }
-
-    container.innerHTML = history.slice().reverse().map(item => `
-        <div class="history-card">
-            <p><strong>Pasien:</strong> ${item.patientName} (ID: ${item.patientId})</p>
-            <p><strong>Tanggal Selesai:</strong> ${new Date(item.completedAt).toLocaleString('id-ID')}</p>
-            <p><strong>Catatan Dokter:</strong> ${item.notes || '-'}</p>
+        return `
+        <div class="prescription-card ready-card">
+            <div class="prescription-header">
+                <h4>${p.patientName}</h4>
+                <span class="badge badge-success">Sudah Bayar</span>
+            </div>
+            <div class="prescription-details">
+                <div class="medicine-list">
+                    <strong>Obat Siap Serah:</strong>
+                    <ul>${itemsHTML}</ul>
+                </div>
+            </div>
+            <div class="prescription-actions">
+                <button class="btn-action btn-success" onclick="handoverMedicine('${p.visitId}')">
+                    <i class="fas fa-hand-holding-heart"></i> Serahkan Obat
+                </button>
+            </div>
         </div>
+        `;
+    }).join('');
+}
+
+async function handoverMedicine(visitId) {
+    Swal.fire({
+        title: 'Serahkan Obat?',
+        text: "Pastikan pasien menerima obat dengan benar. Transaksi akan selesai.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Serahkan',
+        cancelButtonText: 'Batal'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/handover`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visitId })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire('Selesai', 'Obat telah diserahkan. Workflow pasien selesai.', 'success');
+                    displayHandoverQueue();
+                } else {
+                    Swal.fire('Gagal', data.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Gagal memproses penyerahan.', 'error');
+            }
+        }
+    });
+}
+
+// --- 3. Medicine Stock Management ---
+
+async function getMedicines() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines`);
+        if (!response.ok) throw new Error('Failed to fetch medicines');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching medicines:', error);
+        return [];
+    }
+}
+
+async function displayMedicineStock() {
+    const container = document.getElementById('stockTableBody');
+    if (!container) return;
+
+    const medicines = await getMedicines();
+
+    if (medicines.length === 0) {
+        container.innerHTML = `<tr><td colspan="5" class="empty-state">Belum ada data obat.</td></tr>`;
+        return;
+    }
+
+    container.innerHTML = medicines.map(med => `
+        <tr>
+            <td>${med.name}</td>
+            <td>${med.stock}</td>
+            <td>Rp ${med.price.toLocaleString('id-ID')}</td>
+            <td>${med.stock < 10 ? '<span class="text-danger">Stok Menipis</span>' : '<span class="text-success">Aman</span>'}</td>
+            <td>
+                <button class="btn-action btn-sm" onclick="editMedicine('${med.id}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-action btn-sm btn-success" onclick="restockMedicine('${med.id}')"><i class="fas fa-plus"></i></button>
+            </td>
+        </tr>
     `).join('');
 }
 
+// --- 4. History ---
 
-// --- Stock Management ---
+async function displayPharmacyHistory() {
+    const container = document.getElementById('pharmacyHistoryList');
+    if (!container) return;
 
-function displayStockTable() {
-    const tbody = document.getElementById('stockTableBody');
-    const medicines = getMedicines();
-    
-    tbody.innerHTML = medicines.map(med => {
-        const stockStatus = med.stok > 20 ? 'status-success' : med.stok > 0 ? 'status-warning' : 'status-error';
-        return `
-            <tr>
-                <td><strong>${med.nama}</strong></td>
-                <td>${med.golongan}</td>
-                <td>${med.stok}</td>
-                <td>Rp ${med.harga.toLocaleString('id-ID')}</td>
-                <td><span class="status-badge ${stockStatus}">${med.stok > 0 ? 'Tersedia' : 'Habis'}</span></td>
-                <td><button class="btn-action btn-edit" onclick="showEditMedicineModal('${med.id}')"><i class="fas fa-edit"></i> Edit</button></td>
-            </tr>
-        `;
-    }).join('');
+    container.innerHTML = '<div class="loading-spinner">Memuat...</div>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/history`);
+        const history = await response.json();
+
+        if (history.length === 0) {
+            container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat pengambilan obat.</p></div>`;
+            return;
+        }
+
+        // Sort by date desc (assuming date is available, otherwise just reverse)
+        history.reverse();
+
+        container.innerHTML = history.map(h => `
+            <div class="history-card">
+                <div class="history-header">
+                    <strong>${h.patientName}</strong>
+                    <span class="text-muted">${new Date(h.date).toLocaleDateString('id-ID')}</span>
+                </div>
+                <div class="history-details">
+                    <small>Obat: ${h.items.map(i => i.medicineName).join(', ')}</small>
+                    <span class="status-badge status-success">Selesai</span>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error loading history:', error);
+        container.innerHTML = '<div class="empty-state"><p>Gagal memuat riwayat.</p></div>';
+    }
 }
 
-function addMedicine(event) {
-    event.preventDefault();
-    const medicines = getMedicines();
-    const newMed = {
-        id: 'M' + Date.now(),
-        nama: document.getElementById('addMedicineName').value,
-        stok: parseInt(document.getElementById('addMedicineStock').value),
-        harga: parseInt(document.getElementById('addMedicinePrice').value),
-        golongan: document.getElementById('addMedicineGolongan').value
+// --- Helper Functions ---
+
+function refreshPrescriptions() { displayPrescriptionQueue(); }
+function refreshHandover() { displayHandoverQueue(); }
+function refreshHistory() { displayPharmacyHistory(); }
+
+function searchMedicine(query) {
+    const rows = document.querySelectorAll('#stockTableBody tr');
+    rows.forEach(row => {
+        const name = row.cells[0].textContent.toLowerCase();
+        row.style.display = name.includes(query.toLowerCase()) ? '' : 'none';
+    });
+}
+
+// Modal Functions (Add/Edit/Restock) - Simplified for brevity but fully functional
+function showAddMedicineModal() { document.getElementById('addMedicineModal').style.display = 'block'; }
+function closeMedicineModal(type) { document.getElementById(type === 'add' ? 'addMedicineModal' : 'editMedicineModal').style.display = 'none'; }
+function closePrescriptionModal() { document.getElementById('prescriptionModal').style.display = 'none'; }
+
+async function addMedicine(e) {
+    e.preventDefault();
+    const newMedicine = {
+        name: document.getElementById('addMedicineName').value,
+        stock: parseInt(document.getElementById('addMedicineStock').value),
+        price: parseInt(document.getElementById('addMedicinePrice').value),
+        category: document.getElementById('addMedicineGolongan').value,
+        unit: 'pcs' // Default
     };
-    medicines.push(newMed);
-    saveMedicines(medicines);
-    displayStockTable();
-    closeMedicineModal('add');
-    document.getElementById('addMedicineForm').reset();
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newMedicine)
+        });
+        if ((await response.json()).success) {
+            Swal.fire('Berhasil', 'Obat ditambahkan', 'success');
+            closeMedicineModal('add');
+            displayMedicineStock();
+        }
+    } catch (err) { Swal.fire('Error', 'Gagal menambah obat', 'error'); }
 }
 
-function showEditMedicineModal(medicineId) {
-    const medicine = getMedicines().find(m => m.id === medicineId);
+async function editMedicine(id) {
+    const medicines = await getMedicines();
+    const medicine = medicines.find(m => m.id === id);
     if (!medicine) return;
 
+    // Populate Modal
     document.getElementById('editMedicineId').value = medicine.id;
-    document.getElementById('editMedicineName').value = medicine.nama;
-    document.getElementById('editMedicineStock').value = medicine.stok;
-    document.getElementById('editMedicinePrice').value = medicine.harga;
-    document.getElementById('editMedicineGolongan').value = medicine.golongan;
+    document.getElementById('editMedicineName').value = medicine.name;
+    document.getElementById('editMedicineStock').value = medicine.stock;
+    document.getElementById('editMedicinePrice').value = medicine.price;
+    document.getElementById('editMedicineGolongan').value = medicine.category || 'Bebas';
 
+    // Show Modal
     document.getElementById('editMedicineModal').style.display = 'block';
 }
 
-function updateMedicine(event) {
-    event.preventDefault();
-    const medicines = getMedicines();
-    const medicineId = document.getElementById('editMedicineId').value;
-    const idx = medicines.findIndex(m => m.id === medicineId);
+async function updateMedicine(e) {
+    e.preventDefault();
 
-    if (idx > -1) {
-        medicines[idx].nama = document.getElementById('editMedicineName').value;
-        medicines[idx].stok = parseInt(document.getElementById('editMedicineStock').value);
-        medicines[idx].harga = parseInt(document.getElementById('editMedicinePrice').value);
-        medicines[idx].golongan = document.getElementById('editMedicineGolongan').value;
-        saveMedicines(medicines);
+    const id = document.getElementById('editMedicineId').value;
+    const updatedData = {
+        name: document.getElementById('editMedicineName').value,
+        stock: parseInt(document.getElementById('editMedicineStock').value),
+        price: parseInt(document.getElementById('editMedicinePrice').value),
+        category: document.getElementById('editMedicineGolongan').value,
+        unit: 'pcs' // Preserve or update unit if field exists
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire('Berhasil', 'Data obat diperbarui.', 'success');
+            closeMedicineModal('edit');
+            displayMedicineStock();
+        } else {
+            Swal.fire('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Gagal memperbarui obat.', 'error');
     }
-
-    displayStockTable();
-    closeMedicineModal('edit');
 }
 
-function showAddMedicineModal() {
-    document.getElementById('addMedicineModal').style.display = 'block';
-}
+async function restockMedicine(id) {
+    const { value: amount } = await Swal.fire({
+        title: 'Tambah Stok',
+        input: 'number',
+        inputLabel: 'Jumlah stok yang akan ditambahkan',
+        inputPlaceholder: 'Contoh: 50',
+        showCancelButton: true,
+        inputValidator: (value) => {
+            if (!value || value <= 0) {
+                return 'Masukkan jumlah yang valid!'
+            }
+        }
+    });
 
-function closeMedicineModal(type) {
-    document.getElementById(`${type}MedicineModal`).style.display = 'none';
-}
+    if (amount) {
+        const medicines = await getMedicines();
+        const medicine = medicines.find(m => m.id === id);
+        if (medicine) {
+            const newStock = medicine.stock + parseInt(amount);
+            const updatedData = { ...medicine, stock: newStock };
 
+            try {
+                const response = await fetch(`${API_BASE_URL}/pharmacy/medicines/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire('Berhasil', `Stok berhasil ditambahkan. Total sekarang: ${newStock}`, 'success');
+                    displayMedicineStock();
+                } else {
+                    Swal.fire('Gagal', result.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Gagal menambah stok.', 'error');
+            }
+        }
+    }
+}
