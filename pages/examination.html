@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,9 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body>
     <!-- Header Navigation -->
     <header class="header">
@@ -57,6 +60,16 @@
                 </div>
             </div>
 
+            <!-- Problematic Prescriptions Section (for Doctor) -->
+            <div id="problematicPrescriptionsSection" class="queue-section" style="display: none;">
+                <div class="section-header" style="background-color: var(--color-danger-light);">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Resep Perlu Tinjauan</h2>
+                </div>
+                <div id="problematicPrescriptionsList" class="prescriptions-list">
+                    <!-- Problematic prescriptions will be rendered here by examination.js -->
+                </div>
+            </div>
+
             <!-- Examination Tabs -->
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchExaminationTab('vitals')">
@@ -81,7 +94,8 @@
                             <h3><i class="fas fa-user"></i> Data Pasien</h3>
                             <div class="form-group">
                                 <label for="patientSelect">Pilih Pasien dari Antrian</label>
-                                <select id="patientSelect" name="patientSelect" required onchange="loadPatientData(this.value)">
+                                <select id="patientSelect" name="patientSelect" required
+                                    onchange="loadPatientData(this.value)">
                                     <option value="">-- Pilih Pasien --</option>
                                 </select>
                             </div>
@@ -92,24 +106,30 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="tinggi_badan">Tinggi Badan (cm) <span class="required">*</span></label>
-                                    <input type="number" id="tinggi_badan" name="tinggi_badan" required placeholder="170" min="50" max="250">
+                                    <input type="number" id="tinggi_badan" name="tinggi_badan" required
+                                        placeholder="170" min="50" max="250">
                                 </div>
                                 <div class="form-group">
                                     <label for="berat_badan">Berat Badan (kg) <span class="required">*</span></label>
-                                    <input type="number" id="berat_badan" name="berat_badan" required placeholder="70" min="10" max="300" step="0.1">
+                                    <input type="number" id="berat_badan" name="berat_badan" required placeholder="70"
+                                        min="10" max="300" step="0.1">
                                 </div>
                                 <div class="form-group">
                                     <label for="tensi_darah">Tensi Darah <span class="required">*</span></label>
-                                    <input type="text" id="tensi_darah" name="tensi_darah" required placeholder="120/80" pattern="\d{2,3}/\d{2,3}">
+                                    <input type="text" id="tensi_darah" name="tensi_darah" required placeholder="120/80"
+                                        pattern="\d{2,3}/\d{2,3}">
                                 </div>
                                 <div class="form-group">
                                     <label for="suhu_badan">Suhu Badan (°C)</label>
-                                    <input type="number" id="suhu_badan" name="suhu_badan" placeholder="36.5" min="30" max="45" step="0.1">
+                                    <input type="number" id="suhu_badan" name="suhu_badan" placeholder="36.5" min="30"
+                                        max="45" step="0.1">
                                 </div>
-                        <div class="form-group">
-                            <label for="keluhan_perawat">Keluhan Utama Pasien <span class="required">*</span></label>
-                            <textarea id="keluhan_perawat" name="keluhan_perawat" required rows="3" placeholder="Ringkasan keluhan pasien yang dicatat oleh perawat..."></textarea>
-                        </div>
+                                <div class="form-group">
+                                    <label for="keluhan_perawat">Keluhan Utama Pasien <span
+                                            class="required">*</span></label>
+                                    <textarea id="keluhan_perawat" name="keluhan_perawat" required rows="3"
+                                        placeholder="Ringkasan keluhan pasien yang dicatat oleh perawat..."></textarea>
+                                </div>
                             </div>
                         </div>
 
@@ -133,10 +153,12 @@
                             <h3><i class="fas fa-user"></i> Data Pasien</h3>
                             <div class="form-group">
                                 <label for="consultationPatientSelect">Pilih Pasien</label>
-                                <select id="consultationPatientSelect" name="consultationPatientSelect" required onchange="loadPatientForConsultation(this.value)">
+                                <select id="consultationPatientSelect" name="consultationPatientSelect" required
+                                    onchange="loadPatientForConsultation(this.value)">
                                     <option value="">-- Pilih Pasien --</option>
                                 </select>
-                                <p class="field-hint">Dokter akan otomatis melihat data vital &amp; keluhan yang sudah dicatat perawat.</p>
+                                <p class="field-hint">Dokter akan otomatis melihat data vital &amp; keluhan yang sudah
+                                    dicatat perawat.</p>
                             </div>
                         </div>
 
@@ -146,20 +168,25 @@
                                 <!-- Data vital & keluhan dari perawat akan tampil di sini -->
                             </div>
                             <div class="form-group">
-                                <label for="keluhan_pasien">Keluhan Pasien (boleh disesuaikan dokter) <span class="required">*</span></label>
-                                <textarea id="keluhan_pasien" name="keluhan_pasien" required rows="4" placeholder="Keluhan utama pasien berdasarkan wawancara dan data perawat..."></textarea>
+                                <label for="keluhan_pasien">Keluhan Pasien (boleh disesuaikan dokter) <span
+                                        class="required">*</span></label>
+                                <textarea id="keluhan_pasien" name="keluhan_pasien" required rows="4"
+                                    placeholder="Keluhan utama pasien berdasarkan wawancara dan data perawat..."></textarea>
                             </div>
                         </div>
 
                         <div class="form-section">
                             <h3><i class="fas fa-stethoscope"></i> Hasil Pemeriksaan</h3>
                             <div class="form-group">
-                                <label for="hasil_pemeriksaan">Hasil Pemeriksaan Fisik <span class="required">*</span></label>
-                                <textarea id="hasil_pemeriksaan" name="hasil_pemeriksaan" required rows="5" placeholder="Catat hasil pemeriksaan fisik..."></textarea>
+                                <label for="hasil_pemeriksaan">Hasil Pemeriksaan Fisik <span
+                                        class="required">*</span></label>
+                                <textarea id="hasil_pemeriksaan" name="hasil_pemeriksaan" required rows="5"
+                                    placeholder="Catat hasil pemeriksaan fisik..."></textarea>
                             </div>
                             <div class="form-group">
                                 <label for="catatan_dokter">Catatan Dokter</label>
-                                <textarea id="catatan_dokter" name="catatan_dokter" rows="4" placeholder="Catatan tambahan dari dokter..."></textarea>
+                                <textarea id="catatan_dokter" name="catatan_dokter" rows="4"
+                                    placeholder="Catatan tambahan dari dokter..."></textarea>
                             </div>
                         </div>
 
@@ -170,18 +197,36 @@
                                     <input type="checkbox" id="needsPrescription" onchange="togglePrescriptionForm()">
                                     Pasien memerlukan resep obat
                                 </label>
-                                <p class="field-hint">Jika dicentang, resep akan dikirim ke modul Apotek setelah dokter menyimpan hasil pemeriksaan.</p>
+                                <p class="field-hint">Jika dicentang, resep akan dikirim ke modul Apotek setelah dokter
+                                    menyimpan hasil pemeriksaan.</p>
                             </div>
                             <div id="prescriptionForm" style="display: none;">
-                                <div class="form-group">
-                                    <label for="prescription_notes">Catatan Resep (untuk apotek)</label>
-                                    <textarea id="prescription_notes" name="prescription_notes" rows="3" placeholder="Contoh: Paracetamol 500mg 3x1, Amoxicillin 500mg 3x1, dsb."></textarea>
+                                <div class="form-grid-2-col">
+                                    <div class="form-group">
+                                        <label for="prescriptionMedicineSelect">Pilih Obat</label>
+                                        <select id="prescriptionMedicineSelect">
+                                            <option value="">-- Pilih Obat --</option>
+                                            <!-- Options will be populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="prescriptionQuantity">Jumlah</label>
+                                        <input type="number" id="prescriptionQuantity" value="1" min="1">
+                                    </div>
                                 </div>
-                                <p class="info-text">
-                                    Resep <strong>tidak</strong> diambil langsung oleh dokter. Setelah tombol
-                                    <strong>Simpan Hasil Pemeriksaan</strong> ditekan, resep akan otomatis muncul di
-                                    modul Apotek dan dapat diproses oleh petugas apotek.
-                                </p>
+                                <button type="button" class="btn-secondary" onclick="addMedicineToPrescription()">
+                                    <i class="fas fa-plus"></i> Tambah Obat ke Resep
+                                </button>
+
+                                <div id="prescriptionItemsList" class="prescription-items-list">
+                                    <!-- Items added to the prescription will be shown here -->
+                                </div>
+
+                                <div class="form-group" style="margin-top: 1rem;">
+                                    <label for="prescription_notes">Catatan Resep (untuk apotek)</label>
+                                    <textarea id="prescription_notes" name="prescription_notes" rows="3"
+                                        placeholder="Contoh: Paracetamol 500mg 3x1, Amoxicillin 500mg 3x1, dsb."></textarea>
+                                </div>
                             </div>
                         </div>
 
@@ -204,7 +249,8 @@
                         <h3><i class="fas fa-history"></i> Riwayat Medis Pasien</h3>
                         <div class="form-group">
                             <label for="historyPatientSelect">Pilih Pasien</label>
-                            <select id="historyPatientSelect" name="historyPatientSelect" required onchange="loadPatientHistory(this.value)">
+                            <select id="historyPatientSelect" name="historyPatientSelect" required
+                                onchange="loadPatientHistory(this.value)">
                                 <option value="">-- Pilih Pasien --</option>
                             </select>
                         </div>
@@ -217,26 +263,25 @@
         </div>
     </main>
 
+    <script src="../scripts/config.js"></script>
     <script src="../scripts/data-integration.js"></script>
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/main.js"></script>
     <script src="../scripts/examination.js"></script>
     <script>
         // Check role access
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (!requireRole(['dokter', 'perawat', 'admin'])) {
                 return;
             }
-            
+
             const role = getCurrentRole();
-            
+
             // Hide tabs based on role
             if (role === 'perawat') {
-                // Perawat can only access vitals tab
+                // Perawat can access vitals and history, but not consultation
                 document.getElementById('consultationTab').style.display = 'none';
-                document.getElementById('historyTab').style.display = 'none';
                 document.querySelectorAll('.tab-btn')[1].style.display = 'none';
-                document.querySelectorAll('.tab-btn')[2].style.display = 'none';
             } else if (role === 'dokter') {
                 // Dokter can access consultation and history
                 document.getElementById('vitalsTab').style.display = 'none';
@@ -245,5 +290,5 @@
         });
     </script>
 </body>
-</html>
 
+</html>

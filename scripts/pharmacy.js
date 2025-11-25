@@ -1,405 +1,329 @@
-// Pharmacy Module JavaScript
+// Pharmacy Module JavaScript (API Integration)
 
-let prescriptions = [];
-let medicines = [
-    { id: 'M001', nama: 'Paracetamol 500mg', stok: 150, harga: 5000 },
-    { id: 'M002', nama: 'Amoxicillin 500mg', stok: 80, harga: 15000 },
-    { id: 'M003', nama: 'Ibuprofen 400mg', stok: 120, harga: 8000 },
-    { id: 'M004', nama: 'Cetirizine 10mg', stok: 90, harga: 12000 },
-    { id: 'M005', nama: 'Omeprazole 20mg', stok: 60, harga: 20000 }
-];
-
-let processedPrescriptions = [];
-
-// Tab switching
-function switchPharmacyTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    if (tab === 'prescriptions') {
-        document.querySelector('.tab-btn:first-child').classList.add('active');
-        document.getElementById('prescriptionsTab').classList.add('active');
-        loadPrescriptions();
-    } else {
-        document.querySelector('.tab-btn:last-child').classList.add('active');
-        document.getElementById('stockTab').classList.add('active');
-        displayStockTable();
-    }
-}
-
-// Load prescriptions from examination module
-function loadPrescriptions() {
-    // In real app, fetch from API
-    // For now, check localStorage or use sample data
-    const savedPrescriptions = localStorage.getItem('pendingPrescriptions');
-    if (savedPrescriptions) {
-        prescriptions = JSON.parse(savedPrescriptions);
-    } else {
-        // Sample prescription data
-        prescriptions = [
-            {
-                id: 'PR001',
-                patientId: 'P001',
-                patientName: 'Ahmad Wijaya',
-                date: new Date().toISOString(),
-                notes: 'Obat untuk demam dan sakit kepala',
-                status: 'pending',
-                items: [
-                    { medicineId: 'M001', medicineName: 'Paracetamol 500mg', quantity: 2, dosage: '3x1 setelah makan' }
-                ]
-            }
-        ];
-    }
-    
-    displayPrescriptions();
-}
-
-// Display prescriptions
-function displayPrescriptions() {
-    const container = document.getElementById('prescriptionsList');
-    
-    if (prescriptions.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-prescription"></i>
-                <p>Belum ada resep yang masuk</p>
-            </div>
-        `;
+document.addEventListener('DOMContentLoaded', function () {
+    if (!requireRole(['apotek', 'admin'])) {
         return;
     }
-    
-    container.innerHTML = prescriptions.map(prescription => `
-        <div class="prescription-card">
-            <div class="prescription-header">
-                <div>
-                    <h4>Resep #${prescription.id}</h4>
-                    <p class="prescription-patient">Pasien: ${prescription.patientName}</p>
-                    <p class="prescription-date">${new Date(prescription.date).toLocaleDateString('id-ID')}</p>
-                </div>
-                <div class="prescription-status status-${prescription.status}">
-                    ${getPrescriptionStatusText(prescription.status)}
-                </div>
-            </div>
-            <div class="prescription-items">
-                <strong>Daftar Obat:</strong>
-                <ul>
-                    ${prescription.items.map(item => `
-                        <li>${item.medicineName} - ${item.quantity} box (${item.dosage})</li>
-                    `).join('')}
-                </ul>
-            </div>
-            ${prescription.notes ? `
-            <div class="prescription-notes">
-                <strong>Catatan:</strong> ${prescription.notes}
-            </div>
-            ` : ''}
-            <div class="prescription-actions">
-                ${prescription.status === 'pending' ? `
-                <button class="btn-action btn-select" onclick="viewPrescription('${prescription.id}')">
-                    <i class="fas fa-eye"></i> Lihat Detail
-                </button>
-                ` : ''}
-            </div>
-        </div>
+
+    // Initial Load
+    loadPharmacyData();
+    setupPharmacyListeners();
+});
+
+function loadPharmacyData() {
+    displayMedicineStock();
+    displayPrescriptionQueue();
+}
+
+function setupPharmacyListeners() {
+    const addMedicineForm = document.getElementById('addMedicineForm');
+    if (addMedicineForm) addMedicineForm.addEventListener('submit', handleAddMedicine);
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            switchPharmacyTab(tab);
+        });
+    });
+}
+
+function switchPharmacyTab(tab) {
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    // Add active class to selected tab and content
+    document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`${tab}Tab`).classList.add('active');
+
+    // Load data for the selected tab
+    if (tab === 'stock') {
+        displayMedicineStock();
+    } else if (tab === 'prescriptions') {
+        displayPrescriptionQueue();
+    }
+}
+
+// --- Medicine Inventory Management ---
+
+async function getMedicines() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines`);
+        if (!response.ok) throw new Error('Failed to fetch medicines');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching medicines:', error);
+        return [];
+    }
+}
+
+async function displayMedicineStock() {
+    const container = document.getElementById('stockTableBody');
+    if (!container) {
+        console.error('stockTableBody not found!');
+        return;
+    }
+
+    const medicines = await getMedicines();
+    console.log('Medicines loaded:', medicines);
+
+    if (medicines.length === 0) {
+        container.innerHTML = `<tr><td colspan="5" class="empty-state">Belum ada data obat.</td></tr>`;
+        return;
+    }
+
+    container.innerHTML = medicines.map(med => `
+        <tr>
+            <td>${med.name}</td>
+            <td>${med.category}</td>
+            <td class="${med.stock < 10 ? 'text-danger' : ''}"><strong>${med.stock}</strong></td>
+            <td>Rp ${med.price.toLocaleString('id-ID')}</td>
+            <td>${med.unit}</td>
+            <td>
+                <button class="btn-action btn-sm" onclick="editMedicine('${med.id}')"><i class="fas fa-edit"></i> Edit</button>
+                <button class="btn-action btn-sm btn-success" onclick="restockMedicine('${med.id}')"><i class="fas fa-plus"></i> Stok</button>
+            </td>
+        </tr>
     `).join('');
 }
 
-// View prescription details
-function viewPrescription(prescriptionId) {
-    const prescription = prescriptions.find(p => p.id === prescriptionId);
-    if (!prescription) return;
-    
-    const modal = document.getElementById('prescriptionModal');
-    const modalBody = document.getElementById('prescriptionModalBody');
-    
-    modalBody.innerHTML = `
-        <div class="prescription-detail">
-            <div class="detail-section">
-                <h4>Informasi Pasien</h4>
-                <p><strong>Nama:</strong> ${prescription.patientName}</p>
-                <p><strong>ID Pasien:</strong> ${prescription.patientId}</p>
-                <p><strong>Tanggal:</strong> ${new Date(prescription.date).toLocaleDateString('id-ID')}</p>
-            </div>
-            <div class="detail-section">
-                <h4>Daftar Obat</h4>
-                <table class="detail-table">
-                    <thead>
-                        <tr>
-                            <th>Nama Obat</th>
-                            <th>Jumlah</th>
-                            <th>Dosis</th>
-                            <th>Stok Tersedia</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${prescription.items.map(item => {
-                            const medicine = medicines.find(m => m.id === item.medicineId);
-                            const available = medicine ? medicine.stok : 0;
-                            const canFulfill = available >= item.quantity;
-                            
-                            return `
-                                <tr>
-                                    <td>${item.medicineName}</td>
-                                    <td>${item.quantity} box</td>
-                                    <td>${item.dosage}</td>
-                                    <td>${available}</td>
-                                    <td>
-                                        <span class="status-badge ${canFulfill ? 'status-success' : 'status-error'}">
-                                            ${canFulfill ? 'Tersedia' : 'Stok Kurang'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-            ${prescription.notes ? `
-            <div class="detail-section">
-                <h4>Catatan</h4>
-                <p>${prescription.notes}</p>
-            </div>
-            ` : ''}
-        </div>
-    `;
-    
-    modal.style.display = 'block';
-    modal.dataset.prescriptionId = prescriptionId;
-}
-
-// Process prescription
-function processPrescription() {
-    const prescriptionId = document.getElementById('prescriptionModal').dataset.prescriptionId;
-    const prescription = prescriptions.find(p => p.id === prescriptionId);
-    
-    if (!prescription) return;
-    
-    // Check if all medicines are available
-    let allAvailable = true;
-    const unavailableMedicines = [];
-    
-    prescription.items.forEach(item => {
-        const medicine = medicines.find(m => m.id === item.medicineId);
-        if (!medicine || medicine.stok < item.quantity) {
-            allAvailable = false;
-            unavailableMedicines.push(item.medicineName);
-        }
-    });
-    
-    if (!allAvailable) {
-        alert(`Tidak dapat memproses resep. Obat berikut stoknya kurang:\n${unavailableMedicines.join('\n')}`);
-        return;
-    }
-    
-    // Deduct stock
-    prescription.items.forEach(item => {
-        const medicine = medicines.find(m => m.id === item.medicineId);
-        if (medicine) {
-            medicine.stok -= item.quantity;
-        }
-    });
-    
-    // Update prescription status
-    prescription.status = 'processed';
-    processedPrescriptions.push(prescription);
-    prescriptions = prescriptions.filter(p => p.id !== prescriptionId);
-    
-    // Save to localStorage
-    localStorage.setItem('medicines', JSON.stringify(medicines));
-    localStorage.setItem('processedPrescriptions', JSON.stringify(processedPrescriptions));
-    localStorage.setItem('pendingPrescriptions', JSON.stringify(prescriptions));
-    
-    alert('Resep berhasil diproses! Stok obat telah dikurangi.');
-    closePrescriptionModal();
-    displayPrescriptions();
-    displayStockTable();
-}
-
-// Close prescription modal
-function closePrescriptionModal() {
-    document.getElementById('prescriptionModal').style.display = 'none';
-}
-
-// Display stock table
-function displayStockTable() {
-    const tbody = document.getElementById('stockTableBody');
-    
-    if (medicines.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="empty-state-cell">
-                    <div class="empty-state">
-                        <i class="fas fa-boxes"></i>
-                        <p>Belum ada data obat</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = medicines.map(medicine => {
-        const stockStatus = medicine.stok > 20 ? 'status-success' : medicine.stok > 10 ? 'status-warning' : 'status-error';
-        const statusText = medicine.stok > 20 ? 'Aman' : medicine.stok > 10 ? 'Menipis' : 'Habis';
-        
-        return `
-            <tr>
-                <td><strong>${medicine.nama}</strong></td>
-                <td>${medicine.stok}</td>
-                <td>Rp ${medicine.harga.toLocaleString('id-ID')}</td>
-                <td>
-                    <span class="status-badge ${stockStatus}">${statusText}</span>
-                </td>
-                <td>
-                    <button class="btn-action btn-edit" onclick="editStock('${medicine.id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// Search medicine
 function searchMedicine(query) {
-    const tbody = document.getElementById('stockTableBody');
-    const searchTerm = query.toLowerCase();
-    
-    if (!searchTerm) {
-        displayStockTable();
+    const rows = document.querySelectorAll('#medicineStockList tbody tr');
+    rows.forEach(row => {
+        const medicineName = row.cells[0].textContent.toLowerCase();
+        if (medicineName.includes(query.toLowerCase())) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+async function handleAddMedicine(e) {
+    e.preventDefault();
+
+    const newMedicine = {
+        name: document.getElementById('nama_obat').value,
+        category: document.getElementById('kategori_obat').value,
+        stock: parseInt(document.getElementById('stok_obat').value),
+        price: parseInt(document.getElementById('harga_obat').value),
+        unit: document.getElementById('satuan_obat').value
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/medicines`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newMedicine)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire('Berhasil', 'Obat baru berhasil ditambahkan.', 'success');
+            document.getElementById('addMedicineForm').reset();
+            displayMedicineStock();
+        } else {
+            Swal.fire('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Error', 'Terjadi kesalahan koneksi.', 'error');
+    }
+}
+
+async function editMedicine(id) {
+    const medicines = await getMedicines();
+    const medicine = medicines.find(m => m.id === id);
+    if (!medicine) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Obat',
+        html:
+            `<input id="swal-name" class="swal2-input" placeholder="Nama Obat" value="${medicine.name}">` +
+            `<input id="swal-price" type="number" class="swal2-input" placeholder="Harga" value="${medicine.price}">` +
+            `<input id="swal-unit" class="swal2-input" placeholder="Satuan" value="${medicine.unit}">`,
+        focusConfirm: false,
+        showCancelButton: true,
+        preConfirm: () => {
+            return {
+                name: document.getElementById('swal-name').value,
+                price: document.getElementById('swal-price').value,
+                unit: document.getElementById('swal-unit').value
+            }
+        }
+    });
+
+    if (formValues) {
+        const updatedData = { ...medicine, ...formValues, price: parseInt(formValues.price) };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/pharmacy/medicines/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire('Berhasil', 'Data obat diperbarui.', 'success');
+                displayMedicineStock();
+            } else {
+                Swal.fire('Gagal', result.message, 'error');
+            }
+        } catch (error) {
+            Swal.fire('Error', 'Gagal memperbarui obat.', 'error');
+        }
+    }
+}
+
+async function restockMedicine(id) {
+    const { value: amount } = await Swal.fire({
+        title: 'Tambah Stok',
+        input: 'number',
+        inputLabel: 'Jumlah stok yang akan ditambahkan',
+        inputPlaceholder: 'Contoh: 50',
+        showCancelButton: true,
+        inputValidator: (value) => {
+            if (!value || value <= 0) {
+                return 'Masukkan jumlah yang valid!'
+            }
+        }
+    });
+
+    if (amount) {
+        const medicines = await getMedicines();
+        const medicine = medicines.find(m => m.id === id);
+        if (medicine) {
+            const newStock = medicine.stock + parseInt(amount);
+            const updatedData = { ...medicine, stock: newStock };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/pharmacy/medicines/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire('Berhasil', `Stok berhasil ditambahkan. Total sekarang: ${newStock}`, 'success');
+                    displayMedicineStock();
+                } else {
+                    Swal.fire('Gagal', result.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Gagal menambah stok.', 'error');
+            }
+        }
+    }
+}
+
+// --- Prescription Processing ---
+
+async function getPendingPrescriptions() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/pending`);
+        if (!response.ok) throw new Error('Failed to fetch prescriptions');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching prescriptions:', error);
+        return [];
+    }
+}
+
+async function displayPrescriptionQueue() {
+    const container = document.getElementById('prescriptionsList');
+    if (!container) return;
+
+    const prescriptions = await getPendingPrescriptions();
+    console.log('Prescriptions received:', prescriptions);
+
+    if (prescriptions.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>Tidak ada resep yang perlu diproses saat ini.</p></div>`;
         return;
     }
-    
-    const filtered = medicines.filter(medicine => 
-        medicine.nama.toLowerCase().includes(searchTerm)
-    );
-    
-    if (filtered.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" class="empty-state-cell">
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <p>Obat tidak ditemukan</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    tbody.innerHTML = filtered.map(medicine => {
-        const stockStatus = medicine.stok > 20 ? 'status-success' : medicine.stok > 10 ? 'status-warning' : 'status-error';
-        const statusText = medicine.stok > 20 ? 'Aman' : medicine.stok > 10 ? 'Menipis' : 'Habis';
-        
+
+    container.innerHTML = prescriptions.map(p => {
+        console.log('Prescription items:', p.items);
+        const itemsHTML = (p.items && p.items.length > 0)
+            ? p.items.map(item => `
+                <li>${item.medicineName} - ${item.quantity} ${item.instructions ? `(${item.instructions})` : ''}</li>
+            `).join('')
+            : '<li>Tidak ada obat dalam resep</li>';
+
         return `
-            <tr>
-                <td><strong>${medicine.nama}</strong></td>
-                <td>${medicine.stok}</td>
-                <td>Rp ${medicine.harga.toLocaleString('id-ID')}</td>
-                <td>
-                    <span class="status-badge ${stockStatus}">${statusText}</span>
-                </td>
-                <td>
-                    <button class="btn-action btn-edit" onclick="editStock('${medicine.id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                </td>
-            </tr>
+        <div class="prescription-card">
+            <div class="prescription-header">
+                <h4>${p.patientName}</h4>
+                <span class="badge badge-warning">Menunggu Obat</span>
+            </div>
+            <div class="prescription-details">
+                <p><strong>Tanggal:</strong> ${new Date(p.date).toLocaleString('id-ID')}</p>
+                <div class="medicine-list">
+                    <strong>Resep:</strong>
+                    <ul>
+                        ${itemsHTML}
+                    </ul>
+                </div>
+            </div>
+            <div class="prescription-actions">
+                <button class="btn-action btn-success" onclick="processPrescription('${p.visitId}')">
+                    <i class="fas fa-check"></i> Proses & Selesai
+                </button>
+            </div>
+        </div>
         `;
     }).join('');
 }
 
-// Show add medicine modal
-function showAddMedicineModal() {
-    document.getElementById('addMedicineModal').style.display = 'block';
+async function processPrescription(visitId) {
+    Swal.fire({
+        title: 'Proses Resep?',
+        text: "Stok obat akan dikurangi dan pasien akan diarahkan ke kasir.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Ya, Proses!',
+        cancelButtonText: 'Batal'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/pharmacy/prescriptions/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ visitId })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire('Berhasil!', 'Resep telah diproses.', 'success');
+                    displayPrescriptionQueue();
+                    displayMedicineStock(); // Update stock display
+                } else {
+                    Swal.fire('Gagal', data.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Gagal memproses resep.', 'error');
+            }
+        }
+    });
 }
 
-// Close add medicine modal
-function closeAddMedicineModal() {
-    document.getElementById('addMedicineModal').style.display = 'none';
-    document.getElementById('addMedicineForm').reset();
+function refreshPharmacyData() {
+    loadPharmacyData();
 }
 
-// Add medicine
-function addMedicine() {
-    const name = document.getElementById('medicineName').value;
-    const stock = parseInt(document.getElementById('medicineStock').value);
-    const price = parseInt(document.getElementById('medicinePrice').value);
-    
-    if (!name || stock < 0 || price < 0) {
-        alert('Mohon isi semua field dengan benar');
-        return;
-    }
-    
-    const newMedicine = {
-        id: 'M' + String(medicines.length + 1).padStart(3, '0'),
-        nama: name,
-        stok: stock,
-        harga: price
-    };
-    
-    medicines.push(newMedicine);
-    localStorage.setItem('medicines', JSON.stringify(medicines));
-    
-    alert('Obat berhasil ditambahkan!');
-    closeAddMedicineModal();
-    displayStockTable();
-}
-
-// Edit stock
-function editStock(medicineId) {
-    const medicine = medicines.find(m => m.id === medicineId);
-    if (!medicine) return;
-    
-    const newStock = prompt(`Edit stok untuk ${medicine.nama}\nStok saat ini: ${medicine.stok}`, medicine.stok);
-    
-    if (newStock !== null && !isNaN(newStock) && newStock >= 0) {
-        medicine.stok = parseInt(newStock);
-        localStorage.setItem('medicines', JSON.stringify(medicines));
-        displayStockTable();
-        alert('Stok berhasil diperbarui!');
-    }
-}
-
-// Refresh prescriptions
 function refreshPrescriptions() {
-    loadPrescriptions();
+    displayPrescriptionQueue();
 }
 
-// Get prescription status text
-function getPrescriptionStatusText(status) {
-    const statusMap = {
-        'pending': 'Menunggu',
-        'processed': 'Diproses',
-        'completed': 'Selesai'
-    };
-    return statusMap[status] || status;
+function showAddMedicineModal() {
+    const modal = document.getElementById('addMedicineModal');
+    if (modal) modal.style.display = 'block';
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load saved medicines
-    const savedMedicines = localStorage.getItem('medicines');
-    if (savedMedicines) {
-        medicines = JSON.parse(savedMedicines);
-    }
-    
-    // Load prescriptions
-    loadPrescriptions();
-    
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        const prescriptionModal = document.getElementById('prescriptionModal');
-        const addMedicineModal = document.getElementById('addMedicineModal');
-        
-        if (event.target === prescriptionModal) {
-            closePrescriptionModal();
-        }
-        if (event.target === addMedicineModal) {
-            closeAddMedicineModal();
-        }
-    };
-});
-
+function closeMedicineModal(type) {
+    const modal = document.getElementById(type === 'add' ? 'addMedicineModal' : 'editMedicineModal');
+    if (modal) modal.style.display = 'none';
+}

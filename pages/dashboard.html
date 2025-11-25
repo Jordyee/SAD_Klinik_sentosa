@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dasbor - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="register.html" class="nav-link">Pendaftaran</a>
+                <a href="examination.html" class="nav-link">Pemeriksaan</a>
+                <a href="pharmacy.html" class="nav-link">Apotek</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Dasbor Pengguna</h1>
+                <p id="dashboardSubtitle">Informasi profil dan data spesifik role Anda.</p>
+            </div>
+
+            <div id="dashboardContent" class="dashboard-content">
+                <!-- Content will be dynamically populated by dashboard.js -->
+            </div>
+
+            <div class="dashboard-card">
+                <h3><i class="fas fa-book"></i> Panduan Pengguna</h3>
+                <p>Tidak yakin bagaimana menggunakan sistem? Lihat panduan pengguna kami yang disesuaikan untuk peran Anda.</p>
+                <a href="guide.html" class="btn-secondary" style="margin-top: 1rem;">Buka Panduan</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/dashboard.js"></script>
+</body>
+</html>
