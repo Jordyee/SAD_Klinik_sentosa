@@ -1,0 +1,24 @@
+[
+  {
+    "id": "midzzdvs29q7wa3iyl7",
+    "visitId": "midzzdvl7almlejtpkv",
+    "patientId": "midzzdvh7cz55xmbpx6",
+    "doctorId": "doc1",
+    "date": "2025-11-25T03:09:49.960Z",
+    "vitals": {
+      "height": 170,
+      "weight": 70,
+      "bloodPressure": "120/80",
+      "temperature": 36.5
+    },
+    "diagnosis": "Flu",
+    "notes": "Rest and drink water",
+    "prescription": [
+      {
+        "medicineId": "midzzdvo1ja60nrz122",
+        "quantity": 2,
+        "instructions": "3x1"
+      }
+    ]
+  }
+]
