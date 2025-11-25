@@ -14,5 +14,23 @@
     "paymentMethod": "Cash",
     "status": "Paid",
     "timestamp": "2025-11-25T03:09:49.974Z"
+  },
+  {
+    "id": "mie4rxrxtybglx4uo3",
+    "visitId": "mie2na2z8zrwjgc6y8a",
+    "totalAmount": 50000,
+    "items": [
+      {
+        "description": "Biaya Pemeriksaan",
+        "amount": 50000
+      },
+      {
+        "description": "Biaya Obat",
+        "amount": 0
+      }
+    ],
+    "paymentMethod": "cash",
+    "status": "Paid",
+    "timestamp": "2025-11-25T05:24:00.573Z"
   }
 ]
