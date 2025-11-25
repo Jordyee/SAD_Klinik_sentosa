@@ -88,8 +88,10 @@ Gunakan akun berikut untuk masuk ke sistem (`pages/login.html`):
 *   **Perawat**: `perawat` / `perawat123`
 *   **Dokter**: `dokter` / `dokter123`
 *   **Apoteker**: `apotek` / `apotek123`
-*   **Kasir**: `kasir` / `kasir123`
 *   **Pemilik**: `pemilik` / `pemilik123`
+*   **pasien**: `(username kamu)` / `(Password kamu)`
+
+Note: Daftar akun pasien sebelum melakukan login.
 
 ## Struktur Folder
 
