@@ -830,9 +830,8 @@ h1, h2, h3, h4, h5, h6 {
 .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: var(--spacing-xl);
-    flex-wrap: wrap;
     gap: var(--spacing-md);
 }
 
@@ -1146,12 +1145,12 @@ h1, h2, h3, h4, h5, h6 {
         grid-template-columns: 1fr;
     }
     
-    .section-header {
-        flex-direction: column;
-    }
 }
 
 @media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+    }
     .navbar {
         flex-wrap: wrap;
         padding: var(--spacing-sm);

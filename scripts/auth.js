@@ -165,6 +165,44 @@ async function logout() {
 }
 
 // ==============================================
+// USER MANAGEMENT (for Admins)
+// ==============================================
+
+// Get all users from Firestore
+async function getUsers() {
+    try {
+        const snapshot = await firebaseDB.collection('users').get();
+        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return users;
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return [];
+    }
+}
+
+// Delete a user's document from Firestore
+async function removeUser(username) {
+    try {
+        // Find the user document by username
+        const userQuery = await firebaseDB.collection('users').where('username', '==', username).get();
+
+        if (userQuery.empty) {
+            return { success: false, message: 'User not found.' };
+        }
+
+        // Assuming username is unique, there should only be one doc
+        const userDoc = userQuery.docs[0];
+        await firebaseDB.collection('users').doc(userDoc.id).delete();
+
+        return { success: true, message: `User ${username} has been removed.` };
+
+    } catch (error) {
+        console.error('Error removing user:', error);
+        return { success: false, message: 'An error occurred while removing the user.' };
+    }
+}
+
+// ==============================================
 // SESSION MANAGEMENT
 // ==============================================
 

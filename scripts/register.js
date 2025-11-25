@@ -114,7 +114,7 @@ function handleNewPatientSubmit(e) {
     displayQueue();
 }
 
-function handleCreateUserSubmit(e) {
+async function handleCreateUserSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const username = form.querySelector('#newUsername').value;
@@ -127,11 +127,11 @@ function handleCreateUserSubmit(e) {
         return;
     }
 
-    const result = createUser(username, email, password, role);
+    const result = await createUser(username, email, password, role, username);
     
     if (result.success) {
         Swal.fire('Berhasil', result.message, 'success');
-        form.reset();
+        closeCreateUserModal();
         displayUserList();
     } else {
         Swal.fire('Gagal', result.message, 'error');
@@ -139,11 +139,11 @@ function handleCreateUserSubmit(e) {
 }
 
 // --- User Management (Admin) ---
-function displayUserList() {
+async function displayUserList() {
     const userListContainer = document.getElementById('userList');
     if (!userListContainer) return;
 
-    const users = getUsers();
+    const users = await getUsers();
     const currentUser = getCurrentUser();
 
     userListContainer.innerHTML = `
@@ -178,9 +178,9 @@ function deleteUser(username) {
         cancelButtonColor: '#3085d6',
         confirmButtonText: 'Ya, hapus!',
         cancelButtonText: 'Batal'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            const removeResult = removeUser(username);
+            const removeResult = await removeUser(username);
             if (removeResult.success) {
                 Swal.fire('Dihapus!', removeResult.message, 'success');
                 displayUserList();
@@ -320,6 +320,21 @@ function closePatientDetailModal() {
     const modal = document.getElementById('patientDetailModal');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+function openCreateUserModal() {
+    const modal = document.getElementById('createUserModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeCreateUserModal() {
+    const modal = document.getElementById('createUserModal');
+    if (modal) {
+        modal.style.display = 'none';
+        resetForm('createUserForm');
     }
 }
 
