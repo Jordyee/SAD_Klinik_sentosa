@@ -18,5 +18,25 @@
     "dob": "1990-01-01",
     "gender": "L",
     "insuranceType": "umum"
+  },
+  {
+    "id": "mie5rg5xf6s3jgex23o",
+    "nik": "NIK-1764049897360",
+    "name": "prayer",
+    "address": "tempang",
+    "phone": "082190744457",
+    "dob": "1990-01-01",
+    "gender": "L",
+    "insuranceType": "umum"
+  },
+  {
+    "id": "mie65sv996715czbvi",
+    "nik": "NIK-1764050567008",
+    "name": "farlen",
+    "address": "bitung",
+    "phone": "081354678894",
+    "dob": "1990-01-01",
+    "gender": "L",
+    "insuranceType": "asuransi"
   }
 ]

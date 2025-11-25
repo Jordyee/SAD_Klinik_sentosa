@@ -3,26 +3,13 @@ const { readData, writeData, generateId } = require('../utils/jsonHelper');
 const MEDICINES_FILE = 'medicines.json';
 const MEDICAL_RECORDS_FILE = 'medical_records.json';
 const VISITS_FILE = 'visits.json';
+const PATIENTS_FILE = 'patients.json';
 
-// Medicine Management
+// --- Medicine Management ---
+
 const getMedicines = (req, res) => {
     const medicines = readData(MEDICINES_FILE);
     res.json(medicines);
-};
-
-const updateMedicine = (req, res) => {
-    const { id } = req.params;
-    const { name, category, stock, price, unit } = req.body;
-    const medicines = readData(MEDICINES_FILE);
-
-    const index = medicines.findIndex(m => m.id === id);
-    if (index !== -1) {
-        medicines[index] = { ...medicines[index], name, category, stock, price, unit };
-        writeData(MEDICINES_FILE, medicines);
-        res.json({ success: true, message: 'Medicine updated', medicine: medicines[index] });
-    } else {
-        res.status(404).json({ success: false, message: 'Medicine not found' });
-    }
 };
 
 const addMedicine = (req, res) => {
@@ -43,17 +30,34 @@ const addMedicine = (req, res) => {
     res.json({ success: true, message: 'Medicine added', medicine: newMedicine });
 };
 
-// Prescription Processing
+const updateMedicine = (req, res) => {
+    const { id } = req.params;
+    const { name, category, stock, price, unit } = req.body;
+    const medicines = readData(MEDICINES_FILE);
+
+    const index = medicines.findIndex(m => m.id === id);
+    if (index !== -1) {
+        medicines[index] = { ...medicines[index], name, category, stock, price, unit };
+        writeData(MEDICINES_FILE, medicines);
+        res.json({ success: true, message: 'Medicine updated', medicine: medicines[index] });
+    } else {
+        res.status(404).json({ success: false, message: 'Medicine not found' });
+    }
+};
+
+// --- Prescription Processing (Incoming) ---
+
 const getPendingPrescriptions = (req, res) => {
     const visits = readData(VISITS_FILE);
     const records = readData(MEDICAL_RECORDS_FILE);
-    const patients = require('../data/patients.json'); // Direct read for simplicity in joining
+    const patients = readData(PATIENTS_FILE);
 
     // Find visits currently in 'Pharmacy' status
     const pharmacyVisits = visits.filter(v => v.status === 'Pharmacy');
 
     const prescriptions = pharmacyVisits.map(visit => {
-        const record = records.find(r => r.visitId === visit.id);
+        // Find the specific record that contains the prescription
+        const record = records.find(r => r.visitId === visit.id && r.prescription && r.prescription.length > 0);
         const patient = patients.find(p => p.id === visit.patientId);
 
         if (!record) return null;
@@ -80,7 +84,7 @@ const processPrescription = (req, res) => {
         return res.status(404).json({ success: false, message: 'Visit not found' });
     }
 
-    // Find the record with prescription (there might be multiple records for same visit - vitals + diagnosis)
+    // Find the record with prescription
     const record = records.find(r => r.visitId === visitId && r.prescription && r.prescription.length > 0);
     if (!record) {
         return res.status(400).json({ success: false, message: 'No prescription found for this visit' });
@@ -115,10 +119,81 @@ const processPrescription = (req, res) => {
     res.json({ success: true, message: 'Prescription processed, moved to Cashier' });
 };
 
+// --- Handover & History ---
+
+const getReadyPrescriptions = (req, res) => {
+    const visits = readData(VISITS_FILE);
+    const records = readData(MEDICAL_RECORDS_FILE);
+    const patients = readData(PATIENTS_FILE);
+
+    const readyVisits = visits.filter(v => v.status === 'Pharmacy_Ready');
+
+    const prescriptions = readyVisits.map(visit => {
+        // Find the specific record that contains the prescription
+        const record = records.find(r => r.visitId === visit.id && r.prescription && r.prescription.length > 0);
+        const patient = patients.find(p => p.id === visit.patientId);
+
+        if (!record) return null;
+
+        return {
+            visitId: visit.id,
+            patientName: patient ? patient.name : 'Unknown',
+            date: record.date,
+            items: record.prescription || []
+        };
+    }).filter(p => p !== null);
+
+    res.json(prescriptions);
+};
+
+const completeHandover = (req, res) => {
+    const { visitId } = req.body;
+    const visits = readData(VISITS_FILE);
+
+    const visitIndex = visits.findIndex(v => v.id === visitId);
+    if (visitIndex === -1) {
+        return res.status(404).json({ success: false, message: 'Visit not found' });
+    }
+
+    visits[visitIndex].status = 'Done';
+    writeData(VISITS_FILE, visits);
+
+    res.json({ success: true, message: 'Medicine handover complete, visit done' });
+};
+
+const getPharmacyHistory = (req, res) => {
+    const visits = readData(VISITS_FILE);
+    const records = readData(MEDICAL_RECORDS_FILE);
+    const patients = readData(PATIENTS_FILE);
+
+    // Find completed visits that had prescriptions
+    const doneVisits = visits.filter(v => v.status === 'Done');
+
+    const history = doneVisits.map(visit => {
+        // Find the specific record that contains the prescription
+        const record = records.find(r => r.visitId === visit.id && r.prescription && r.prescription.length > 0);
+        const patient = patients.find(p => p.id === visit.patientId);
+
+        if (!record) return null;
+
+        return {
+            visitId: visit.id,
+            patientName: patient ? patient.name : 'Unknown',
+            date: record.date,
+            items: record.prescription
+        };
+    }).filter(h => h !== null);
+
+    res.json(history);
+};
+
 module.exports = {
     getMedicines,
     updateMedicine,
     addMedicine,
     getPendingPrescriptions,
-    processPrescription
+    processPrescription,
+    getReadyPrescriptions,
+    completeHandover,
+    getPharmacyHistory
 };

@@ -32,5 +32,41 @@
     "paymentMethod": "cash",
     "status": "Paid",
     "timestamp": "2025-11-25T05:24:00.573Z"
+  },
+  {
+    "id": "mie5uj5ruj0tmi1u2wp",
+    "visitId": "mie5rg63fljdlyf2t7f",
+    "totalAmount": 50000,
+    "items": [
+      {
+        "description": "Biaya Pemeriksaan",
+        "amount": 50000
+      },
+      {
+        "description": "Biaya Obat",
+        "amount": 0
+      }
+    ],
+    "paymentMethod": "transfer",
+    "status": "Paid",
+    "timestamp": "2025-11-25T05:54:01.215Z"
+  },
+  {
+    "id": "mie689x4y7lzg3t5w4",
+    "visitId": "mie65svgiuzh7t34o3",
+    "totalAmount": 50000,
+    "items": [
+      {
+        "description": "Biaya Pemeriksaan",
+        "amount": 50000
+      },
+      {
+        "description": "Biaya Obat",
+        "amount": 0
+      }
+    ],
+    "paymentMethod": "card",
+    "status": "Paid",
+    "timestamp": "2025-11-25T06:04:42.424Z"
   }
 ]
