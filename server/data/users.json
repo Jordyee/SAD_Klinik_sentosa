@@ -6,5 +6,53 @@
     "role": "admin",
     "fullName": "Admin User",
     "email": "admin@example.com"
+  },
+  {
+    "id": "mie0skc5kqb7a0gbpr",
+    "username": "David",
+    "password": "david123",
+    "role": "pasien",
+    "fullName": "David",
+    "email": "david@klinik.com"
+  },
+  {
+    "id": "mie25vgua966p8d53a",
+    "username": "jody",
+    "password": "jody123",
+    "role": "pasien",
+    "fullName": "jody",
+    "email": "jody@gmail.com"
+  },
+  {
+    "id": "mie2qrpp5bumvrlzujb",
+    "username": "perawat",
+    "password": "perawat123",
+    "role": "perawat",
+    "fullName": "perawat",
+    "email": "perawat@gmail.com"
+  },
+  {
+    "id": "mie2yxa3lkygfm8639i",
+    "username": "dokter",
+    "password": "dokter123",
+    "role": "dokter",
+    "fullName": "dokter",
+    "email": "dokter@gmail.com"
+  },
+  {
+    "id": "mie2zftt79bm7ud7z64",
+    "username": "apoteker",
+    "password": "apoteker123",
+    "role": "apotek",
+    "fullName": "apoteker",
+    "email": "apotek@gmail.com"
+  },
+  {
+    "id": "mie2zvcm749qre3apf3",
+    "username": "pemilik",
+    "password": "pemilik123",
+    "role": "pemilik",
+    "fullName": "pemilik",
+    "email": "pemilik@gmail.com"
   }
 ]

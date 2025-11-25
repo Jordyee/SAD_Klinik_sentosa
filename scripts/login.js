@@ -1,5 +1,5 @@
 // Login & Registration Module
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Ensure user database is initialized on load
     if (typeof initializeUsers === 'function') {
         initializeUsers();
@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
-    
+
     const loginCard = document.getElementById('loginCard');
     const registerCard = document.getElementById('registerCard');
     const showRegisterLink = document.getElementById('showRegister');
@@ -32,15 +32,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Handle Login Form Submission ---
     if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+        loginForm.addEventListener('submit', async function (e) {
             e.preventDefault();
-            
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const selectedRole = document.querySelector('input[name="role"]:checked').value;
-            
-            const user = authenticateUser(username, password, selectedRole);
-            
+
+            // Show loading state
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerText;
+            submitBtn.innerText = 'Loading...';
+            submitBtn.disabled = true;
+
+            const user = await authenticateUser(username, password, selectedRole);
+
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+
             if (user) {
                 // Redirect based on the role stored in the user's record
                 redirectBasedOnRole(user.role);
@@ -55,8 +64,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Handle Registration Form Submission ---
+    // --- Handle Registration Form Submission ---
     if (registerForm) {
-        registerForm.addEventListener('submit', function(e) {
+        registerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const username = document.getElementById('newUsername').value;
@@ -72,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const result = registerUser(username, email, password);
+            const result = await registerUser(username, email, password);
 
             if (result.success) {
                 Swal.fire({
@@ -107,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function togglePassword() {
     const passwordInput = document.getElementById('password');
     const toggleIcon = document.getElementById('toggleIcon');
-    
+
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         toggleIcon.classList.remove('fa-eye');
@@ -124,7 +134,7 @@ function redirectBasedOnRole(role) {
     const inPagesFolder = window.location.pathname.includes('/pages/');
     const base = inPagesFolder ? '' : 'pages/';
 
-    switch(role) {
+    switch (role) {
         case 'pasien':
             window.location.href = inPagesFolder ? '../index.html' : 'index.html';
             break;
@@ -155,7 +165,7 @@ function redirectBasedOnRole(role) {
         const userSession = JSON.parse(session);
         // Don't redirect if we are on the login page itself
         if (!window.location.pathname.includes('login.html')) {
-             redirectBasedOnRole(userSession.role);
+            redirectBasedOnRole(userSession.role);
         }
     }
 })();

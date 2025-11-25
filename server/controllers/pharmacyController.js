@@ -80,8 +80,9 @@ const processPrescription = (req, res) => {
         return res.status(404).json({ success: false, message: 'Visit not found' });
     }
 
-    const record = records.find(r => r.visitId === visitId);
-    if (!record || !record.prescription) {
+    // Find the record with prescription (there might be multiple records for same visit - vitals + diagnosis)
+    const record = records.find(r => r.visitId === visitId && r.prescription && r.prescription.length > 0);
+    if (!record) {
         return res.status(400).json({ success: false, message: 'No prescription found for this visit' });
     }
 

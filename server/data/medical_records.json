@@ -20,5 +20,35 @@
         "instructions": "3x1"
       }
     ]
+  },
+  {
+    "id": "mie2xvblfpi6l5g58su",
+    "visitId": "mie2na2z8zrwjgc6y8a",
+    "patientId": "mie2na2ntyg4k0991c",
+    "date": "2025-11-25T04:32:38.097Z",
+    "vitals": {
+      "height": "170",
+      "weight": "70",
+      "bloodPressure": "120/80",
+      "temperature": "36.6",
+      "nurseNotes": "Sakit kaki"
+    }
+  },
+  {
+    "id": "mie30s94tddueq1wlc",
+    "visitId": "mie2na2z8zrwjgc6y8a",
+    "patientId": "mie2na2ntyg4k0991c",
+    "doctorId": "mie2yxa3lkygfm8639i",
+    "date": "2025-11-25T04:34:54.088Z",
+    "diagnosis": "patah kaki",
+    "notes": "butuh istirahat",
+    "prescription": [
+      {
+        "medicineId": "midzzdvo1ja60nrz122",
+        "medicineName": "Paracetamol",
+        "quantity": 1,
+        "instructions": ""
+      }
+    ]
   }
 ]

@@ -28,14 +28,17 @@ const createMedicalRecord = (req, res) => {
 
     records.push(newRecord);
 
-    // Update visit status to 'Pharmacy' if there is a prescription, otherwise 'Cashier' or 'Done'
-    // For now, let's say if there's a prescription, go to Pharmacy.
-    // If no prescription but there is a consultation fee, go to Cashier.
-    // Let's assume flow: Examining -> Pharmacy (if meds) -> Cashier
+    // Determine next status based on input
+    // If diagnosis is present, it's a Doctor's examination -> move to Pharmacy or Cashier
+    // If only vitals are present (no diagnosis), it's a Nurse's check -> move to Examining (Menunggu Dokter)
+    let nextStatus = 'Examining';
 
-    let nextStatus = 'Cashier';
-    if (prescription && prescription.length > 0) {
-        nextStatus = 'Pharmacy';
+    if (diagnosis) {
+        if (prescription && prescription.length > 0) {
+            nextStatus = 'Pharmacy';
+        } else {
+            nextStatus = 'Cashier';
+        }
     }
 
     visits[visitIndex].status = nextStatus;

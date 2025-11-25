@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body>
     <!-- Header Navigation -->
     <header class="header">
@@ -65,7 +67,9 @@
                 <div class="form-container">
                     <div id="registrationInfo" class="registration-info">
                         <!-- Pesan informasi setelah pendaftaran akan muncul di sini -->
-                        <p>Isi data di bawah ini untuk mendaftar. Setelah menekan <strong>Simpan &amp; Daftarkan</strong>, nama Anda akan masuk ke <em>Daftar Antrian</em> di bagian bawah halaman.</p>
+                        <p>Isi data di bawah ini untuk mendaftar. Setelah menekan <strong>Simpan &amp;
+                                Daftarkan</strong>, nama Anda akan masuk ke <em>Daftar Antrian</em> di bagian bawah
+                            halaman.</p>
                     </div>
                     <form id="newPatientForm" class="patient-form">
                         <div class="form-section">
@@ -73,11 +77,13 @@
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="nama">Nama Lengkap <span class="required">*</span></label>
-                                    <input type="text" id="nama" name="nama" required placeholder="Masukkan nama lengkap">
+                                    <input type="text" id="nama" name="nama" required
+                                        placeholder="Masukkan nama lengkap">
                                 </div>
                                 <div class="form-group">
                                     <label for="alamat">Alamat <span class="required">*</span></label>
-                                    <textarea id="alamat" name="alamat" required rows="3" placeholder="Masukkan alamat lengkap"></textarea>
+                                    <textarea id="alamat" name="alamat" required rows="3"
+                                        placeholder="Masukkan alamat lengkap"></textarea>
                                 </div>
                                 <div class="form-group">
                                     <label for="no_telp">Nomor Telepon <span class="required">*</span></label>
@@ -112,7 +118,9 @@
                 <div class="search-container">
                     <div class="search-box-large">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="patientSearch" placeholder="Cari berdasarkan nama, nomor telepon, atau ID pasien..." onkeyup="searchPatient(this.value)">
+                        <input type="text" id="patientSearch"
+                            placeholder="Cari berdasarkan nama, nomor telepon, atau ID pasien..."
+                            onkeyup="searchPatient(this.value)">
                     </div>
                 </div>
 
@@ -141,7 +149,8 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="newPassword">Password <span class="required">*</span></label>
-                                    <input type="password" id="newPassword" required placeholder="Password minimal 6 karakter">
+                                    <input type="password" id="newPassword" required
+                                        placeholder="Password minimal 6 karakter">
                                 </div>
                                 <div class="form-group">
                                     <label for="newRole">Role <span class="required">*</span></label>
@@ -157,7 +166,8 @@
                             </div>
                         </div>
                         <div class="form-actions">
-                            <button type="submit" class="btn-submit"><i class="fas fa-plus-circle"></i> Buat Akun</button>
+                            <button type="submit" class="btn-submit"><i class="fas fa-plus-circle"></i> Buat
+                                Akun</button>
                         </div>
                     </form>
                 </div>
@@ -185,17 +195,18 @@
         </div>
     </main>
 
+    <script src="../scripts/config.js"></script>
     <script src="../scripts/data-integration.js"></script>
     <script src="../scripts/auth.js"></script>
     <script src="../scripts/main.js"></script>
     <script src="../scripts/register.js"></script>
     <script>
         // Check role access
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (!requireRole(['admin', 'pasien'])) {
                 return;
             }
-            
+
             const role = getCurrentRole();
             if (role === 'pasien') {
                 // Hide admin-only features for pasien
@@ -222,5 +233,5 @@
         </div>
     </div>
 </body>
-</html>
 
+</html>
