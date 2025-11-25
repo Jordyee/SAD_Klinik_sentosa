@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,13 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body class="login-page">
     <div class="login-container">
-        <div class="login-card">
+        <!-- Login Card -->
+        <div class="login-card" id="loginCard">
             <div class="login-header">
                 <div class="logo-large">
                     <i class="fas fa-hospital"></i>
@@ -22,10 +26,11 @@
 
             <form id="loginForm" class="login-form">
                 <div class="form-group">
-                    <label for="username">Username</label>
+                    <label for="emailOrUsername">Email atau Username</label>
                     <div class="input-wrapper">
                         <i class="fas fa-user"></i>
-                        <input type="text" id="username" name="username" required placeholder="Masukkan username" autocomplete="username">
+                        <input type="text" id="emailOrUsername" name="emailOrUsername" required
+                            placeholder="Masukkan email atau username" autocomplete="username">
                     </div>
                 </div>
 
@@ -33,95 +38,120 @@
                     <label for="password">Password</label>
                     <div class="input-wrapper">
                         <i class="fas fa-lock"></i>
-                        <input type="password" id="password" name="password" required placeholder="Masukkan password" autocomplete="current-password">
+                        <input type="password" id="password" name="password" required placeholder="Masukkan password"
+                            autocomplete="current-password">
                         <button type="button" class="toggle-password" onclick="togglePassword()">
                             <i class="fas fa-eye" id="toggleIcon"></i>
                         </button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="role">Masuk Sebagai</label>
-                    <div class="role-selector">
-                        <label class="role-option">
-                            <input type="radio" name="role" value="pasien" checked>
-                            <div class="role-card">
-                                <i class="fas fa-user"></i>
-                                <span>Pasien</span>
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="admin">
-                            <div class="role-card">
-                                <i class="fas fa-user-shield"></i>
-                                <span>Admin</span>
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="dokter">
-                            <div class="role-card">
-                                <i class="fas fa-user-md"></i>
-                                <span>Dokter</span>
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="perawat">
-                            <div class="role-card">
-                                <i class="fas fa-user-nurse"></i>
-                                <span>Perawat</span>
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="apotek">
-                            <div class="role-card">
-                                <i class="fas fa-pills"></i>
-                                <span>Apotek</span>
-                            </div>
-                        </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="pemilik">
-                            <div class="role-card">
-                                <i class="fas fa-user-tie"></i>
-                                <span>Pemilik</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-submit btn-login">
+                <button type="submit" class="btn-submit btn-login" style="background-color: #f21cfe; color: white;">
                     <i class="fas fa-sign-in-alt"></i>
                     <span>Masuk</span>
                 </button>
 
+                <p class="text-center" style="margin-top: 1rem;">
+                    Belum punya akun? <a href="#" id="showRegister"
+                        style="color: #007bff; text-decoration: none;">Daftar di sini</a>
+                </p>
+
                 <div class="login-info">
-                    <p><strong>Demo Account:</strong></p>
+                    <p><strong>Akun Demo Firebase:</strong></p>
                     <div class="demo-accounts">
                         <div class="demo-item">
-                            <strong>Pasien:</strong> pasien / pasien123
+                            <strong>Admin:</strong> admin@klinik.com / Klinikadmin123!
                         </div>
                         <div class="demo-item">
-                            <strong>Admin:</strong> admin / admin123
+                            <strong>Dokter:</strong> dokter@klinik.com / Klinikdokter123!
                         </div>
                         <div class="demo-item">
-                            <strong>Dokter:</strong> dokter / dokter123
+                            <strong>Perawat:</strong> perawat@klinik.com / Klinikperawat123!
                         </div>
                         <div class="demo-item">
-                            <strong>Perawat:</strong> perawat / perawat123
+                            <strong>Apotek:</strong> apotek@klinik.com / Klinikapotek123!
                         </div>
                         <div class="demo-item">
-                            <strong>Apotek:</strong> apotek / apotek123
-                        </div>
-                        <div class="demo-item">
-                            <strong>Pemilik:</strong> pemilik / pemilik123
+                            <strong>Pasien:</strong> pasien@example.com / Klinikpasien123!
                         </div>
                     </div>
+                    <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #666;">
+                        <i class="fas fa-info-circle"></i> Anda juga bisa login dengan username (tanpa @domain.com)
+                    </p>
                 </div>
+            </form>
+        </div>
+
+        <!-- Registration Card -->
+        <div class="login-card" id="registerCard" style="display: none;">
+            <div class="login-header">
+                <div class="logo-large">
+                    <i class="fas fa-user-plus"></i>
+                    <h1>Buat Akun Baru</h1>
+                </div>
+                <p class="login-subtitle">Daftar sebagai Pasien</p>
+            </div>
+
+            <form id="registerForm" class="login-form">
+                <div class="form-group">
+                    <label for="newFullName">Nama Lengkap</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="newFullName" name="newFullName" required
+                            placeholder="Masukkan nama lengkap">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="newUsername">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="newUsername" name="newUsername" required
+                            placeholder="Pilih username unik">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="newEmail">Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="newEmail" name="newEmail" required placeholder="Masukkan email valid">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="newPassword">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="newPassword" name="newPassword" required
+                            placeholder="Min. 6 karakter" minlength="6">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit btn-register" style="background-color: #f21cfe; color: white;">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Daftar</span>
+                </button>
+
+                <p class="text-center" style="margin-top: 1rem;">
+                    Sudah punya akun? <a href="#" id="showLogin" style="color: #007bff; text-decoration: none;">Login di
+                        sini</a>
+                </p>
             </form>
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="../scripts/firebase-config.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="../scripts/auth.js"></script>
     <script src="../scripts/login.js"></script>
 </body>
+
 </html>
-
-

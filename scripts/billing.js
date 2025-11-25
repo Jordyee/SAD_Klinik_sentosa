@@ -1,368 +1,349 @@
-// Billing Module JavaScript
+// ======================================================================
+// BILLING MODULE - FIREBASE VERSION
+// ======================================================================
+// Payment data now saved to Firebase Firestore
 
-let completedVisits = [];
-let paymentHistory = [];
-const biayaPemeriksaanDefault = 50000; // Default examination fee
+const BIAYA_PEMERIKSAAN_DEFAULT = 50000;
+let paymentHistory = []; // Keep for local caching
 
-// Load billing data
-function loadBillingData() {
-    // Load completed visits from examination
-    const savedRecords = localStorage.getItem('medicalRecords');
-    const savedPrescriptions = localStorage.getItem('processedPrescriptions');
-    
-    if (savedRecords) {
-        const records = JSON.parse(savedRecords);
-        completedVisits = records.map(record => ({
-            patientId: record.patientId,
-            date: record.date,
-            hasPrescription: record.needsPrescription || false
-        }));
-    }
-    
-    // Load payment history
-    const savedPayments = localStorage.getItem('paymentHistory');
-    if (savedPayments) {
-        paymentHistory = JSON.parse(savedPayments);
-    }
-    
-    populateBillingPatientSelect();
-    displayPaymentHistory();
+document.addEventListener('DOMContentLoaded', async function () {
+    requireRole(['admin', 'pasien']);
+    await loadBillingPageData();
+});
+
+async function loadBillingPageData() {
+    await displayPrescriptionsForBilling();
+    await displayPaymentHistory();
 }
 
-// Populate patient select
-function populateBillingPatientSelect() {
-    const select = document.getElementById('billingPatientSelect');
-    
-    // Get unique patient IDs from completed visits
-    const uniquePatients = [...new Set(completedVisits.map(v => v.patientId))];
-    
-    // Get patient data from queue
-    const savedQueue = localStorage.getItem('patientQueue');
-    let patients = [];
-    if (savedQueue) {
-        const queue = JSON.parse(savedQueue);
-        patients = queue.map(item => item.patient);
+// --- UI Population ---
+
+async function displayPrescriptionsForBilling() {
+    const container = document.getElementById('patientsForBillingList');
+    if (!container) return;
+
+    const allPrescriptions = await getPrescriptions();
+    const prescriptionsForBilling = allPrescriptions.filter(p =>
+        p.status === 'processed' && p.paymentStatus === 'unpaid'
+    );
+
+    // Search input
+    let searchInput = document.getElementById('billingPatientSearch');
+    if (!searchInput) {
+        searchInput = document.createElement('input');
+        searchInput.type = 'search';
+        searchInput.id = 'billingPatientSearch';
+        searchInput.placeholder = 'Cari pasien (nama atau ID)...';
+        searchInput.className = 'searchable-select-input';
+        container.parentNode.insertBefore(searchInput, container);
+
+        let t;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(t);
+            const q = e.target.value.trim().toLowerCase();
+            t = setTimeout(() => {
+                document.querySelectorAll('.patient-billing-card').forEach(card => {
+                    const txt = (card.textContent || '').toLowerCase();
+                    card.style.display = q === '' || txt.includes(q) ? '' : 'none';
+                });
+            }, 160);
+        });
     }
-    
-    // Clear existing options except first
-    while (select.options.length > 1) {
-        select.remove(1);
+
+    container.innerHTML = '';
+
+    if (prescriptionsForBilling.length === 0) {
+        container.innerHTML = `<div class="empty-state"><p>Tidak ada resep yang menunggu pembayaran.</p></div>`;
+        return;
     }
-    
-    uniquePatients.forEach(patientId => {
-        const patient = patients.find(p => p.id === patientId);
-        if (patient) {
-            const option = document.createElement('option');
-            option.value = patientId;
-            option.textContent = `${patient.nama} (${patientId})`;
-            select.appendChild(option);
+
+    const patientsToBill = prescriptionsForBilling.reduce((acc, p) => {
+        if (!acc[p.patientId]) {
+            acc[p.patientId] = {
+                patientId: p.patientId,
+                patientName: p.patientName,
+                prescriptions: []
+            };
         }
+        acc[p.patientId].prescriptions.push(p);
+        return acc;
+    }, {});
+
+    Object.values(patientsToBill).forEach(patient => {
+        const patientCard = document.createElement('div');
+        patientCard.className = 'patient-billing-card';
+        patientCard.dataset.patientId = patient.patientId;
+        patientCard.innerHTML = `
+            <div class="patient-name">${patient.patientName}</div>
+            <div class="patient-id">Pasien ID: ${patient.patientId}</div>
+            <div class="patient-queue-number">Resep: ${patient.prescriptions.length} item</div>
+        `;
+
+        patientCard.addEventListener('click', () => {
+            loadBillingDetails(patient.patientId);
+        });
+
+        container.appendChild(patientCard);
     });
 }
 
-// Load billing data for selected patient
-function loadBillingData(patientId) {
+async function loadBillingDetails(patientId) {
     const billingDetails = document.getElementById('billingDetails');
-    const visit = completedVisits.find(v => v.patientId === patientId);
-    
-    if (!visit) {
-        alert('Data kunjungan tidak ditemukan');
+    if (!patientId) {
+        billingDetails.style.display = 'none';
         return;
     }
-    
-    // Calculate examination fee
-    const biayaPemeriksaan = biayaPemeriksaanDefault;
-    
-    // Calculate medicine fee
-    let biayaObat = 0;
-    const savedPrescriptions = localStorage.getItem('processedPrescriptions');
-    if (savedPrescriptions) {
-        const prescriptions = JSON.parse(savedPrescriptions);
-        const patientPrescription = prescriptions.find(p => p.patientId === patientId);
-        
-        if (patientPrescription) {
-            // Get medicine prices
-            const savedMedicines = localStorage.getItem('medicines');
-            if (savedMedicines) {
-                const medicines = JSON.parse(savedMedicines);
-                patientPrescription.items.forEach(item => {
-                    const medicine = medicines.find(m => m.id === item.medicineId);
-                    if (medicine) {
-                        biayaObat += medicine.harga * item.quantity;
-                    }
-                });
-            }
-        }
+
+    document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
+    const selectedCard = document.querySelector(`.patient-billing-card[data-patient-id='${patientId}']`);
+    if (selectedCard) selectedCard.classList.add('active');
+
+    const patient = await findPatientById(patientId);
+    if (!patient) {
+        Swal.fire('Error', 'Data pasien tidak ditemukan.', 'error');
+        return;
     }
-    
-    const totalBayar = biayaPemeriksaan + biayaObat;
-    
-    // Update display
+
+    const allPrescriptions = await getPrescriptions();
+    const patientPrescriptions = allPrescriptions.filter(p =>
+        p.patientId === patientId && p.status === 'processed' && p.paymentStatus === 'unpaid'
+    );
+
+    if (patientPrescriptions.length === 0) {
+        Swal.fire('Info', 'Pasien ini tidak memiliki resep yang perlu dibayar.', 'info');
+        resetBilling();
+        return;
+    }
+
+    // Cost Calculation
+    const biayaPemeriksaan = BIAYA_PEMERIKSAAN_DEFAULT;
+    let biayaObat = 0;
+    const medicines = await getMedicines();
+
+    patientPrescriptions.forEach(prescription => {
+        prescription.items.forEach(item => {
+            const medicine = medicines.find(m => m.id === item.medicineId);
+            if (medicine) {
+                biayaObat += medicine.harga * (item.quantity || 1);
+            }
+        });
+    });
+
+    const subTotal = biayaPemeriksaan + biayaObat;
+    let discount = 0;
+    const patientStatus = patient.status_pasien || 'umum';
+
+    // Discount Logic
+    switch (patientStatus) {
+        case 'bpjs':
+            discount = subTotal; // 100%
+            break;
+        case 'asuransi':
+            discount = subTotal * 0.8; // 80%
+            break;
+        case 'umum':
+        default:
+            discount = 0;
+            break;
+    }
+
+    const finalTotal = subTotal - discount;
+
+    // Update UI
     document.getElementById('biayaPemeriksaan').textContent = `Rp ${biayaPemeriksaan.toLocaleString('id-ID')}`;
     document.getElementById('biayaObat').textContent = `Rp ${biayaObat.toLocaleString('id-ID')}`;
-    document.getElementById('totalBayar').innerHTML = `<strong>Rp ${totalBayar.toLocaleString('id-ID')}</strong>`;
-    
-    // Store billing data
+    document.getElementById('subTotal').innerHTML = `<strong>Rp ${subTotal.toLocaleString('id-ID')}</strong>`;
+
+    const statusEl = document.getElementById('patientStatus');
+    statusEl.textContent = patientStatus.charAt(0).toUpperCase() + patientStatus.slice(1);
+    statusEl.className = `status-badge status-${patientStatus}`;
+
+    document.getElementById('discount').textContent = `- Rp ${discount.toLocaleString('id-ID')}`;
+    document.getElementById('finalTotal').innerHTML = `<strong>Rp ${finalTotal.toLocaleString('id-ID')}</strong>`;
+
+    const prescriptionIds = patientPrescriptions.map(p => p.id);
+    billingDetails.dataset.prescriptionIds = JSON.stringify(prescriptionIds);
     billingDetails.dataset.patientId = patientId;
+    billingDetails.dataset.patientName = patient.nama;
+    billingDetails.dataset.finalTotal = finalTotal;
     billingDetails.dataset.biayaPemeriksaan = biayaPemeriksaan;
     billingDetails.dataset.biayaObat = biayaObat;
-    billingDetails.dataset.totalBayar = totalBayar;
-    
+
     billingDetails.style.display = 'block';
 }
 
-// Process payment
-function processPayment() {
+// --- Payment Processing (FIREBASE) ---
+
+async function processPayment() {
     const billingDetails = document.getElementById('billingDetails');
     const patientId = billingDetails.dataset.patientId;
-    
-    if (!patientId) {
-        alert('Pilih pasien terlebih dahulu');
+    const prescriptionIdsStr = billingDetails.dataset.prescriptionIds;
+
+    if (!patientId || !prescriptionIdsStr) {
+        Swal.fire('Peringatan', 'Pilih pasien dari daftar terlebih dahulu.', 'warning');
         return;
     }
-    
-    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-    const totalBayar = parseInt(billingDetails.dataset.totalBayar);
-    const biayaPemeriksaan = parseInt(billingDetails.dataset.biayaPemeriksaan);
-    const biayaObat = parseInt(billingDetails.dataset.biayaObat);
-    
-    // Get patient data
-    const savedQueue = localStorage.getItem('patientQueue');
-    let patientName = 'Unknown';
-    if (savedQueue) {
-        const queue = JSON.parse(savedQueue);
-        const patient = queue.find(item => item.patient.id === patientId);
-        if (patient) {
-            patientName = patient.patient.nama;
-        }
-    }
-    
-    // Create payment record
-    const payment = {
-        id: 'PAY' + Date.now(),
+
+    const prescriptionIds = JSON.parse(prescriptionIdsStr);
+
+    // Update prescription payment status in Firebase
+    const updatePromises = prescriptionIds.map(id =>
+        firebaseDB.collection('prescriptions').doc(id).update({
+            paymentStatus: 'paid',
+            updatedAt: new Date()
+        })
+    );
+
+    await Promise.all(updatePromises);
+
+    const finalTotal = Number(billingDetails.dataset.finalTotal) || 0;
+    const biayaPemeriksaanPaid = Number(billingDetails.dataset.biayaPemeriksaan) || 0;
+    const biayaObatPaid = Number(billingDetails.dataset.biayaObat) || 0;
+    const patientName = billingDetails.dataset.patientName;
+
+    // Save payment to Firebase
+    const paymentData = {
+        prescriptionIds: prescriptionIds,
         patientId: patientId,
         patientName: patientName,
-        date: new Date().toISOString(),
-        biayaPemeriksaan: biayaPemeriksaan,
-        biayaObat: biayaObat,
-        totalBayar: totalBayar,
-        paymentMethod: paymentMethod,
-        status: 'completed'
+        totalBayar: finalTotal,
+        biayaPemeriksaan: biayaPemeriksaanPaid,
+        biayaObat: biayaObatPaid,
+        paymentMethod: document.querySelector('input[name="paymentMethod"]:checked').value,
+        status: 'Lunas',
+        date: new Date(),
+        createdBy: getCurrentUser().username,
+        createdAt: new Date()
     };
-    
-    paymentHistory.push(payment);
-    localStorage.setItem('paymentHistory', JSON.stringify(paymentHistory));
-    
-    // Show receipt
-    showReceipt(payment);
-    
-    alert('Pembayaran berhasil diproses!');
+
+    const paymentRef = await firebaseDB.collection('payments').add(paymentData);
+
+    // Update queue status
+    const queue = await getQueue();
+    const appointment = queue.find(q => q.patientId === patientId);
+    if (appointment) {
+        await updateQueueStatus(appointment.id, 'Menunggu Pengambilan Obat');
+    }
+
+    Swal.fire({
+        title: 'Pembayaran Berhasil!',
+        text: `Pembayaran untuk ${prescriptionIds.length} resep telah berhasil. Pasien dapat melanjutkan untuk mengambil obat.`,
+        icon: 'success',
+        timer: 2500,
+        showConfirmButton: false
+    }).then(() => {
+        showReceipt({ id: paymentRef.id, ...paymentData });
+    });
+
     resetBilling();
-    displayPaymentHistory();
+    await loadBillingPageData();
 }
 
-// Show receipt
-function showReceipt(payment) {
-    const modal = document.getElementById('receiptModal');
-    const receiptBody = document.getElementById('receiptBody');
-    
-    receiptBody.innerHTML = `
-        <div class="receipt">
-            <div class="receipt-header">
-                <h2>KLINIK SENTOSA</h2>
-                <p>Jl. Kesehatan No. 123, Jakarta</p>
-                <p>Telp: (021) 1234-5678</p>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-info">
-                <div class="receipt-row">
-                    <span>No. Struk:</span>
-                    <span>${payment.id}</span>
-                </div>
-                <div class="receipt-row">
-                    <span>Tanggal:</span>
-                    <span>${new Date(payment.date).toLocaleString('id-ID')}</span>
-                </div>
-                <div class="receipt-row">
-                    <span>Pasien:</span>
-                    <span>${payment.patientName}</span>
-                </div>
-                <div class="receipt-row">
-                    <span>ID Pasien:</span>
-                    <span>${payment.patientId}</span>
-                </div>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-items">
-                <div class="receipt-item">
-                    <span>Biaya Pemeriksaan</span>
-                    <span>Rp ${payment.biayaPemeriksaan.toLocaleString('id-ID')}</span>
-                </div>
-                <div class="receipt-item">
-                    <span>Biaya Obat</span>
-                    <span>Rp ${payment.biayaObat.toLocaleString('id-ID')}</span>
-                </div>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-total">
-                <span><strong>TOTAL</strong></span>
-                <span><strong>Rp ${payment.totalBayar.toLocaleString('id-ID')}</strong></span>
-            </div>
-            <div class="receipt-divider"></div>
-            <div class="receipt-payment">
-                <div class="receipt-row">
-                    <span>Metode Pembayaran:</span>
-                    <span>${getPaymentMethodText(payment.paymentMethod)}</span>
-                </div>
-            </div>
-            <div class="receipt-footer">
-                <p>Terima kasih atas kunjungan Anda</p>
-                <p>Semoga lekas sembuh</p>
-            </div>
-        </div>
-    `;
-    
-    modal.style.display = 'block';
-}
+// --- UI Helpers ---
 
-// Print receipt
-function printReceipt() {
-    const billingDetails = document.getElementById('billingDetails');
-    const patientId = billingDetails.dataset.patientId;
-    
-    if (!patientId) {
-        alert('Pilih pasien terlebih dahulu');
-        return;
-    }
-    
-    // Get patient data
-    const savedQueue = localStorage.getItem('patientQueue');
-    let patientName = 'Unknown';
-    if (savedQueue) {
-        const queue = JSON.parse(savedQueue);
-        const patient = queue.find(item => item.patient.id === patientId);
-        if (patient) {
-            patientName = patient.patient.nama;
-        }
-    }
-    
-    const biayaPemeriksaan = parseInt(billingDetails.dataset.biayaPemeriksaan);
-    const biayaObat = parseInt(billingDetails.dataset.biayaObat);
-    const totalBayar = parseInt(billingDetails.dataset.totalBayar);
-    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-    
-    const payment = {
-        id: 'PAY' + Date.now(),
-        patientId: patientId,
-        patientName: patientName,
-        date: new Date().toISOString(),
-        biayaPemeriksaan: biayaPemeriksaan,
-        biayaObat: biayaObat,
-        totalBayar: totalBayar,
-        paymentMethod: paymentMethod
-    };
-    
-    showReceipt(payment);
-}
-
-// Close receipt modal
-function closeReceiptModal() {
-    document.getElementById('receiptModal').style.display = 'none';
-}
-
-// Get payment method text
-function getPaymentMethodText(method) {
-    const methods = {
-        'cash': 'Tunai',
-        'transfer': 'Transfer Bank',
-        'card': 'Kartu Debit/Kredit'
-    };
-    return methods[method] || method;
-}
-
-// Reset billing
 function resetBilling() {
-    document.getElementById('billingPatientSelect').value = '';
     document.getElementById('billingDetails').style.display = 'none';
+    document.querySelectorAll('.patient-billing-card').forEach(card => card.classList.remove('active'));
 }
 
-// Display payment history
-function displayPaymentHistory() {
+async function displayPaymentHistory() {
     const container = document.getElementById('paymentHistory');
-    
-    if (paymentHistory.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-history"></i>
-                <p>Belum ada riwayat pembayaran</p>
-            </div>
-        `;
+    if (!container) return;
+
+    // Get payments from Firebase
+    const paymentsSnapshot = await firebaseDB.collection('payments')
+        .orderBy('date', 'desc')
+        .limit(50)
+        .get();
+
+    if (paymentsSnapshot.empty) {
+        container.innerHTML = `<div class="empty-state"><p>Belum ada riwayat pembayaran.</p></div>`;
         return;
     }
-    
-    container.innerHTML = paymentHistory.map(payment => `
+
+    const payments = [];
+    paymentsSnapshot.forEach(doc => {
+        payments.push({ id: doc.id, ...doc.data() });
+    });
+
+    container.innerHTML = payments.map(payment => `
         <div class="payment-card">
-            <div class="payment-header">
-                <div>
-                    <h4>${payment.patientName}</h4>
-                    <p class="payment-id">ID: ${payment.patientId} | No. Struk: ${payment.id}</p>
-                    <p class="payment-date">${new Date(payment.date).toLocaleString('id-ID')}</p>
-                </div>
-                <div class="payment-status status-success">
-                    Lunas
-                </div>
-            </div>
-            <div class="payment-details">
-                <div class="payment-detail-row">
-                    <span>Biaya Pemeriksaan:</span>
-                    <span>Rp ${payment.biayaPemeriksaan.toLocaleString('id-ID')}</span>
-                </div>
-                <div class="payment-detail-row">
-                    <span>Biaya Obat:</span>
-                    <span>Rp ${payment.biayaObat.toLocaleString('id-ID')}</span>
-                </div>
-                <div class="payment-detail-row total">
-                    <span><strong>Total:</strong></span>
-                    <span><strong>Rp ${payment.totalBayar.toLocaleString('id-ID')}</strong></span>
-                </div>
-                <div class="payment-detail-row">
-                    <span>Metode:</span>
-                    <span>${getPaymentMethodText(payment.paymentMethod)}</span>
-                </div>
-            </div>
-            <div class="payment-actions">
-                <button class="btn-action btn-select" onclick="viewReceipt('${payment.id}')">
-                    <i class="fas fa-eye"></i> Lihat Struk
-                </button>
-            </div>
+            <p><strong>${payment.patientName}</strong> (ID: ${payment.patientId})</p>
+            <p>Total: Rp ${payment.totalBayar.toLocaleString('id-ID')}</p>
+            <p>Tanggal: ${payment.date.toDate().toLocaleString('id-ID')}</p>
+            <p>Status: <span class="status-badge status-success">${payment.status}</span></p>
         </div>
     `).join('');
 }
 
-// View receipt from history
-function viewReceipt(paymentId) {
-    const payment = paymentHistory.find(p => p.id === paymentId);
-    if (payment) {
-        showReceipt(payment);
+function showReceipt(payment) {
+    const modal = document.getElementById('receiptModal');
+    const receiptBody = document.getElementById('receiptBody');
+    if (!modal || !receiptBody) return;
+
+    modal.dataset.payment = JSON.stringify(payment);
+
+    const prescriptionIdText = (payment.prescriptionIds || []).join(', ');
+    const paymentDate = payment.date instanceof Date ? payment.date : payment.date.toDate();
+
+    receiptBody.innerHTML = `
+        <div class="receipt-header">
+            <h3>Klinik Sentosa</h3>
+            <p>Jl. Contoh No. 123, Kota Contoh</p>
+            <p>Telp: (021) 12345678</p>
+            <hr>
+        </div>
+        <div class="receipt-details">
+            <p><strong>Tanggal:</strong> ${paymentDate.toLocaleString('id-ID')}</p>
+            <p><strong>Pasien:</strong> ${payment.patientName} (ID: ${payment.patientId})</p>
+            <p><strong>ID Resep:</strong> ${prescriptionIdText}</p>
+            <p><strong>Metode Pembayaran:</strong> ${payment.paymentMethod.toUpperCase()}</p>
+            <hr>
+            <p><strong>Total Pembayaran:</strong> <span class="total-amount">Rp ${payment.totalBayar.toLocaleString('id-ID')}</span></p>
+        </div>
+        <div class="receipt-footer">
+            <p>Terima kasih atas kunjungan Anda.</p>
+        </div>
+    `;
+    modal.style.display = 'block';
+}
+
+function closeReceiptModal() {
+    const modal = document.getElementById('receiptModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function printReceipt() {
+    const modal = document.getElementById('receiptModal');
+    if (!modal || !modal.dataset.payment) {
+        Swal.fire('Error', 'Tidak ada struk untuk dicetak.', 'error');
+        return;
     }
-}
 
-// Refresh payment history
-function refreshPaymentHistory() {
-    loadBillingData();
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadBillingData();
-    
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        const receiptModal = document.getElementById('receiptModal');
-        if (event.target === receiptModal) {
-            closeReceiptModal();
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>Struk Pembayaran</title>');
+    printWindow.document.write('<link rel="stylesheet" href="../styles/main.css">');
+    printWindow.document.write('<style>');
+    printWindow.document.write(`
+        body { font-family: 'Inter', sans-serif; margin: 20px; }
+        .receipt-content { width: 300px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; }
+        .receipt-header, .receipt-details, .receipt-footer { text-align: center; margin-bottom: 10px; }
+        .receipt-header h3 { margin-bottom: 5px; }
+        .receipt-header p, .receipt-details p, .receipt-footer p { font-size: 0.9em; margin: 2px 0; }
+        .total-amount { font-weight: bold; font-size: 1.2em; }
+        hr { border: 0; border-top: 1px dashed #ccc; margin: 10px 0; }
+        @media print {
+            .modal-footer, .modal-header button { display: none; }
+            .receipt-content { border: none; box-shadow: none; }
         }
-    };
-});
+    `);
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write(modal.querySelector('.modal-content').innerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+}
 
-
+console.log('✅ Billing.js (Firebase) loaded successfully!');

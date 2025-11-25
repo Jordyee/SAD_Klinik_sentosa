@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Firebase service account key
+config/firebase-config.json
+
+# SQLite database files (not needed anymore with Firebase)
+*.db
+*.db-shm
+*.db-wal
+
+# Node modulesog
+.DS_Store
+coverage/
+.vscode/
+.idea/

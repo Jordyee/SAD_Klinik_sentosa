@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panduan Pengguna - Klinik Sentosa</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/modules.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-left">
+                <a href="../index.html" class="nav-link">Beranda</a>
+                <a href="dashboard.html" class="nav-link">Dasbor</a>
+            </div>
+            <div class="nav-center">
+                <div class="logo">
+                    <i class="fas fa-hospital"></i>
+                    <span>Klinik Sentosa</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="user-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="module-page">
+        <div class="container">
+            <div class="page-header">
+                <h1>Panduan Pengguna</h1>
+                <p>Panduan penggunaan sistem berdasarkan peran Anda.</p>
+            </div>
+
+            <div class="guide-container">
+                <!-- Panduan untuk Pasien -->
+                <div id="guide-pasien" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-hero);">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <h3>Panduan untuk Pasien</h3>
+                        <p>Sebagai pasien, Anda dapat menggunakan sistem untuk mendaftar, melengkapi data, dan masuk ke dalam antrian pemeriksaan.</p>
+                        <ul>
+                            <li>Mendaftarkan akun pengguna baru melalui halaman login.</li>
+                            <li>Melengkapi data klinis Anda satu kali setelah mendaftar.</li>
+                            <li>Melihat profil dan data Anda di halaman dasbor.</li>
+                            <li>Mendaftarkan diri ke antrian untuk pemeriksaan setiap kali berkunjung.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Panduan untuk Admin -->
+                <div id="guide-admin" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-primary);">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <h3>Panduan untuk Admin</h3>
+                        <p>Sebagai admin, Anda memiliki akses ke fitur kunci untuk mengelola alur klinik sehari-hari.</p>
+                        <ul>
+                            <li>Mendaftarkan pasien baru dan lama ke dalam antrian.</li>
+                            <li>Membuat akun baru untuk staff (dokter, perawat, dll).</li>
+                            <li>Melihat detail pasien yang sedang berada di dalam antrian.</li>
+                            <li>Memproses transaksi pembayaran di halaman kasir/billing.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Panduan untuk Dokter -->
+                <div id="guide-dokter" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-primary);">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <h3>Panduan untuk Dokter</h3>
+                        <p>Sebagai dokter, alur kerja utama Anda berpusat pada proses pemeriksaan dan penanganan pasien.</p>
+                        <ul>
+                            <li>Melihat daftar pasien yang menunggu untuk konsultasi.</li>
+                            <li>Melihat data vital yang telah diinput oleh perawat.</li>
+                            <li>Mengisi hasil pemeriksaan, diagnosa, dan catatan medis.</li>
+                            <li>Membuat resep obat jika diperlukan untuk pasien.</li>
+                            <li>Menangani resep bermasalah yang mungkin dilaporkan oleh apotek.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Panduan untuk Perawat -->
+                <div id="guide-perawat" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-primary);">
+                            <i class="fas fa-user-nurse"></i>
+                        </div>
+                        <h3>Panduan untuk Perawat</h3>
+                        <p>Sebagai perawat, tugas Anda adalah melakukan pemeriksaan awal dan mencatat data vital pasien.</p>
+                        <ul>
+                            <li>Memilih pasien dari daftar antrian pemeriksaan.</li>
+                            <li>Mengisi data vital pasien (tinggi, berat, tensi, suhu, dll).</li>
+                            <li>Melihat riwayat medis lampau pasien untuk pemantauan.</li>
+                            <li>Mengarahkan pasien ke dokter setelah data vital terisi.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                 <!-- Panduan untuk Apotek -->
+                 <div id="guide-apotek" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-primary);">
+                            <i class="fas fa-pills"></i>
+                        </div>
+                        <h3>Panduan untuk Apoteker</h3>
+                        <p>Sebagai apoteker, Anda bertanggung jawab atas pengelolaan resep dan stok obat.</p>
+                        <ul>
+                            <li>Melihat daftar resep obat yang masuk dari dokter.</li>
+                            <li>Memproses resep dan menyiapkan obat untuk pasien.</li>
+                            <li>Melaporkan ke dokter jika stok obat tidak mencukupi.</li>
+                            <li>Menyerahkan obat kepada pasien setelah pembayaran dikonfirmasi.</li>
+                            <li>Mengelola stok obat (menambah, mengedit, dan melihat stok).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="guide-default" class="guide-section" style="display: none;">
+                    <div class="role-info-card">
+                        <div class="role-icon" style="background: var(--gradient-primary);">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <h3>Panduan Pengguna</h3>
+                        <p>Tidak ada panduan spesifik untuk peran Anda. Silakan hubungi admin untuk informasi lebih lanjut.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../scripts/data-integration.js"></script>
+    <script src="../scripts/auth.js"></script>
+    <script src="../scripts/main.js"></script>
+    <script src="../scripts/guide.js"></script>
+</body>
+</html>

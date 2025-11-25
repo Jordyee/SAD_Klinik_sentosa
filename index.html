@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body>
     <!-- Header Navigation -->
     <header class="header">
@@ -47,7 +50,8 @@
         </div>
         <div class="hero-content">
             <h1 class="hero-title">Kelola Pelayanan Pasien dengan Mudah dan Efisien</h1>
-            <p class="hero-subtitle">Sistem terintegrasi untuk mengelola pendaftaran, pemeriksaan, resep obat, dan pembayaran dengan antarmuka yang modern dan user-friendly.</p>
+            <p class="hero-subtitle">Sistem terintegrasi untuk mengelola pendaftaran, pemeriksaan, resep obat, dan
+                pembayaran dengan antarmuka yang modern dan user-friendly.</p>
             <button class="btn-hero" onclick="handleGetStarted()">
                 <span>Mulai Sekarang</span>
                 <i class="fas fa-arrow-right"></i>
@@ -104,11 +108,13 @@
                 <i class="fas fa-arrow-right"></i>
             </a>
             <h2 class="section-title">Jelajahi Pilihan, Tentang Klinik Sentosa, Kesehatan Anda, Prioritas Kami</h2>
-            
+
             <div class="about-content">
                 <div class="about-text">
                     <h3>Tentang Kami</h3>
-                    <p>Klinik Sentosa adalah platform terpercaya yang menghubungkan pasien dengan layanan kesehatan berkualitas. Kami menyediakan sistem terkomputerisasi yang mengelola seluruh alur pelayanan dari pendaftaran hingga pembayaran.</p>
+                    <p>Klinik Sentosa adalah platform terpercaya yang menghubungkan pasien dengan layanan kesehatan
+                        berkualitas. Kami menyediakan sistem terkomputerisasi yang mengelola seluruh alur pelayanan dari
+                        pendaftaran hingga pembayaran.</p>
                     <button class="btn-secondary" onclick="window.location.href='pages/about.html'">
                         Pelajari Lebih Lanjut
                         <i class="fas fa-arrow-right"></i>
@@ -150,7 +156,7 @@
                     <button class="btn-view-all">Lihat Semua</button>
                 </div>
             </div>
-            
+
             <div class="services-grid">
                 <div class="service-card">
                     <div class="service-icon">
@@ -195,9 +201,10 @@
                     <p>Kelola stok obat dengan sistem pencatatan yang akurat</p>
                 </div>
             </div>
-            
+
             <div class="services-cta">
-                <p>Buat janji temu untuk konsultasi personal, perawatan khusus, atau pemeriksaan rutin, dan ambil langkah menuju kesehatan yang lebih baik.</p>
+                <p>Buat janji temu untuk konsultasi personal, perawatan khusus, atau pemeriksaan rutin, dan ambil
+                    langkah menuju kesehatan yang lebih baik.</p>
             </div>
         </div>
     </section>
@@ -206,7 +213,8 @@
     <section class="facilities-section" id="facilities">
         <div class="container">
             <h2 class="section-title-large">Fasilitas Terdekat, Perawatan Terpercaya, Mudah Dijangkau, Jelajahi!</h2>
-            <p class="section-subtitle">Temukan layanan kesehatan terbaik di sekitar Anda dengan akses mudah ke layanan kesehatan berkualitas yang disesuaikan dengan kebutuhan Anda.</p>
+            <p class="section-subtitle">Temukan layanan kesehatan terbaik di sekitar Anda dengan akses mudah ke layanan
+                kesehatan berkualitas yang disesuaikan dengan kebutuhan Anda.</p>
             <button class="btn-hero" onclick="window.location.href='pages/register.html'">
                 <span>Mulai</span>
                 <i class="fas fa-arrow-right"></i>
@@ -221,7 +229,9 @@
                 <div class="quote-icon">
                     <i class="fas fa-quote-left"></i>
                 </div>
-                <p class="testimonial-text">"Dengan dedikasi dan keahlian kami dalam layanan kesehatan, kami berusaha memberikan layanan yang bukan hanya pengobatan, tetapi perjalanan yang menenangkan menuju kesehatan yang lebih baik."</p>
+                <p class="testimonial-text">"Dengan dedikasi dan keahlian kami dalam layanan kesehatan, kami berusaha
+                    memberikan layanan yang bukan hanya pengobatan, tetapi perjalanan yang menenangkan menuju kesehatan
+                    yang lebih baik."</p>
                 <div class="testimonial-author">
                     <div class="author-avatar"></div>
                     <div class="author-info">
@@ -257,9 +267,18 @@
         </div>
     </footer>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <!-- Firebase Config -->
+    <script src="scripts/firebase-config.js"></script>
+
+    <!-- Application Scripts -->
     <script src="scripts/data-integration.js"></script>
     <script src="scripts/auth.js"></script>
     <script src="scripts/main.js"></script>
 </body>
-</html>
 
+</html>

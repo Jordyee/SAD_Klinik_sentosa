@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../styles/modules.css">
     <link rel="stylesheet" href="../styles/animations.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <!-- Header Navigation -->
@@ -54,6 +55,16 @@
                 </div>
                 <div id="examinationQueue" class="queue-list">
                     <!-- Queue items will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Problematic Prescriptions Section (for Doctor) -->
+            <div id="problematicPrescriptionsSection" class="queue-section" style="display: none;">
+                <div class="section-header" style="background-color: var(--color-danger-light);">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Resep Perlu Tinjauan</h2>
+                </div>
+                <div id="problematicPrescriptionsList" class="prescriptions-list">
+                    <!-- Problematic prescriptions will be rendered here by examination.js -->
                 </div>
             </div>
 
@@ -117,7 +128,7 @@
                             <button type="button" class="btn-cancel" onclick="resetVitalsForm()">
                                 <i class="fas fa-times"></i> Batal
                             </button>
-                            <button type="submit" class="btn-submit">
+                            <button type="submit" class="btn-submit" style="background-color: pink;" >
                                 <i class="fas fa-save"></i> Simpan Data Vital
                             </button>
                         </div>
@@ -173,15 +184,31 @@
                                 <p class="field-hint">Jika dicentang, resep akan dikirim ke modul Apotek setelah dokter menyimpan hasil pemeriksaan.</p>
                             </div>
                             <div id="prescriptionForm" style="display: none;">
-                                <div class="form-group">
+                                <div class="form-grid-2-col">
+                                    <div class="form-group">
+                                        <label for="prescriptionMedicineSelect">Pilih Obat</label>
+                                        <select id="prescriptionMedicineSelect">
+                                            <option value="">-- Pilih Obat --</option>
+                                            <!-- Options will be populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="prescriptionQuantity">Jumlah</label>
+                                        <input type="number" id="prescriptionQuantity" value="1" min="1">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-secondary" onclick="addMedicineToPrescription()">
+                                    <i class="fas fa-plus"></i> Tambah Obat ke Resep
+                                </button>
+                                
+                                <div id="prescriptionItemsList" class="prescription-items-list">
+                                    <!-- Items added to the prescription will be shown here -->
+                                </div>
+
+                                <div class="form-group" style="margin-top: 1rem;">
                                     <label for="prescription_notes">Catatan Resep (untuk apotek)</label>
                                     <textarea id="prescription_notes" name="prescription_notes" rows="3" placeholder="Contoh: Paracetamol 500mg 3x1, Amoxicillin 500mg 3x1, dsb."></textarea>
                                 </div>
-                                <p class="info-text">
-                                    Resep <strong>tidak</strong> diambil langsung oleh dokter. Setelah tombol
-                                    <strong>Simpan Hasil Pemeriksaan</strong> ditekan, resep akan otomatis muncul di
-                                    modul Apotek dan dapat diproses oleh petugas apotek.
-                                </p>
                             </div>
                         </div>
 
@@ -189,7 +216,7 @@
                             <button type="button" class="btn-cancel" onclick="resetConsultationForm()">
                                 <i class="fas fa-times"></i> Batal
                             </button>
-                            <button type="submit" class="btn-submit">
+                            <button type="submit" class="btn-submit" style="background-color: pink;" >
                                 <i class="fas fa-save"></i> Simpan Hasil Pemeriksaan
                             </button>
                         </div>
@@ -232,11 +259,9 @@
             
             // Hide tabs based on role
             if (role === 'perawat') {
-                // Perawat can only access vitals tab
+                // Perawat can access vitals and history, but not consultation
                 document.getElementById('consultationTab').style.display = 'none';
-                document.getElementById('historyTab').style.display = 'none';
                 document.querySelectorAll('.tab-btn')[1].style.display = 'none';
-                document.querySelectorAll('.tab-btn')[2].style.display = 'none';
             } else if (role === 'dokter') {
                 // Dokter can access consultation and history
                 document.getElementById('vitalsTab').style.display = 'none';
