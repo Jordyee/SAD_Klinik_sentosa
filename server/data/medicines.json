@@ -35,7 +35,7 @@
     "id": "med004",
     "name": "Vitamin C 1000mg",
     "category": "Suplemen",
-    "stock": 100,
+    "stock": 95,
     "price": 25000,
     "unit": "Botol"
   },
@@ -83,7 +83,7 @@
     "id": "med010",
     "name": "Dexamethasone 0.5mg",
     "category": "Kortikosteroid",
-    "stock": 35,
+    "stock": 32,
     "price": 8000,
     "unit": "Strip"
   },
@@ -139,7 +139,7 @@
     "id": "med017",
     "name": "Obat Batuk Hitam",
     "category": "Obat Batuk",
-    "stock": 70,
+    "stock": 66,
     "price": 15000,
     "unit": "Botol"
   },

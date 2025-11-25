@@ -54,5 +54,21 @@
     "role": "pemilik",
     "fullName": "pemilik",
     "email": "pemilik@gmail.com"
+  },
+  {
+    "id": "mie5qnfdkav290ql1n",
+    "username": "prayer",
+    "password": "prayer123",
+    "role": "pasien",
+    "fullName": "prayer",
+    "email": "prayer@klinik.com"
+  },
+  {
+    "id": "mie652bg7an9ayu9tu3",
+    "username": "farlen",
+    "password": "farlen123",
+    "role": "pasien",
+    "fullName": "farlen",
+    "email": "farlen@gmail.com"
   }
 ]

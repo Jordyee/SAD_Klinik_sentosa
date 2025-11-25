@@ -82,8 +82,8 @@ const createTransaction = (req, res) => {
 
     transactions.push(newTransaction);
 
-    // Update visit status to 'Done'
-    visits[visitIndex].status = 'Done';
+    // Update visit status to 'Pharmacy_Ready' (Back to Pharmacy for handover)
+    visits[visitIndex].status = 'Pharmacy_Ready';
     writeData(VISITS_FILE, visits);
 
     if (writeData(TRANSACTIONS_FILE, transactions)) {

@@ -8,5 +8,8 @@ router.put('/medicines/:id', pharmacyController.updateMedicine);
 
 router.get('/prescriptions/pending', pharmacyController.getPendingPrescriptions);
 router.post('/prescriptions/process', pharmacyController.processPrescription);
+router.get('/prescriptions/ready', pharmacyController.getReadyPrescriptions);
+router.post('/prescriptions/handover', pharmacyController.completeHandover);
+router.get('/history', pharmacyController.getPharmacyHistory);
 
 module.exports = router;
